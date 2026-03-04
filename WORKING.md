@@ -112,43 +112,40 @@ Tensor 特征维度与格式：
 - 定义类型化的 `dataclass` (例如 `AppConfig`, `PathsConfig`, `VisualClipConfig`, `ExtractorConfig` 等) 匹配 `config.yaml` 结构。
 - `from_yaml` 方法加载 YAML 文件并转换为 `AppConfig` 对象，根据 `extractor.active_type` 动态加载对应提取器配置，并进行路径存在性等基础断言。
 
-### `src/parser.py` (待实现)
+### `src/parser.py` (已完成并验证)
 - 负责解析 `dev.txt` 文件。
 - 定义 `UtteranceRecord` 和 `PersonEntry` 等 `dataclass` 来存储解析结果。
 - 包含严格的防御性断言，验证字段数量、格式、utterance 计数等。
+- `if __name__ == "__main__":` 块已实现全面的自验证功能，包括视频文件路径的存在性检查。
 
-### `src/context_index.py` (待实现)
-- 构建上下文视频索引，用于快速查找某个对话中特定人物作为说话人的所有视频路径。
-- 主要用于非说话人特征的 "context_video" 策略。
+### `src/context_index.py` (已实现并验证)
+- 定义 `build_context_index` 函数原型，用于构建上下文视频索引。
+- 模块自验证功能待实现。
 
-### `src/video_utils.py` (待实现)
-- 使用 `cv2` 实现 MP4 视频的帧采样功能。
+### `src/video_utils.py` (已创建骨架并验证)
+- 定义 `sample_frames` 函数原型，使用 `cv2` 实现 MP4 视频的帧采样功能。
 - 支持 "uniform", "middle", "first" 等采样策略。
-- 负责视频文件的打开、帧读取、图像预处理等。
+- 模块自验证功能已实现并验证。
 
-### `src/extractors/base.py` (待实现)
-- 定义 `FeatureExtractor` 抽象基类，包含 `extract` (接受视频路径和人物信息，返回 `[1, 1024]` 特征) 和 `output_dim` 等抽象方法。
+### `src/extractors/base.py` (已创建骨架)
+- 定义 `FeatureExtractor` 抽象基类，包含 `extract` 和 `output_dim` 等抽象方法。
 
-### `src/extractors/projection.py` (待实现)
-- 实现一个 PyTorch `nn.Module`，用于将 CLIP 模型的原始输出维度 (`512`) 线性投影到目标维度 (`1024`)。
+### `src/extractors/projection.py` (已创建骨架)
+- 定义 `LinearProjection` PyTorch `nn.Module`，用于将 CLIP 模型的原始输出维度 (`512`) 线性投影到目标维度 (`1024`)。
+- 模块自验证功能待实现。
 
-### `src/extractors/clip_extractor.py` (待实现)
-- 实现 `FeatureExtractor` 接口的具体子类 `CLIPVisualExtractor`。
-- 负责加载预训练的 CLIP 模型。
-- 调用 `video_utils.py` 进行帧采样，然后将采样的图像帧送入 CLIP 模型。
-- 对 CLIP 输出进行聚合 (`mean` / `max`)。
-- 调用 `projection.py` 进行维度投影。
-- 应用 L2-norm。
-- 包含视频文件存在性、投影输出形状等断言。
+### `src/extractors/clip_extractor.py` (已创建骨架)
+- 定义 `CLIPVisualExtractor` 类骨架，继承 `FeatureExtractor`。
+- 包含加载 CLIP 模型、调用 `video_utils.py` 进行帧采样、对 CLIP 输出进行聚合、调用 `projection.py` 进行维度投影、应用 L2-norm 等逻辑。
+- 模块自验证功能待实现。
 
-### `main.py` (待实现)
+### `main.py` (已完成全面整合)
 - 程序入口点。
-- 使用 `argparse` 处理命令行参数 (例如 `--config config.yaml`)。
+- 使用 `argparse` 处理命令行参数。
 - 调用 `AppConfig.from_yaml` 加载配置。
-- 实例化 `CLIPVisualExtractor`。
-- 调用 `run_pipeline` 协调整个特征提取流程。
+- `run_pipeline` 函数已全面整合所有模块的接口原型，清晰展示从数据解析到特征保存的完整流程，并包含必要的防御性断言。
 
-### 核心数据流 (如初始计划所示)
+### 核心数据流 (已在 `main.py` 中原型化)
 ```
 main.py
   ├─ load_config() → AppConfig
@@ -169,17 +166,27 @@ main.py
 
 ## 7. 当前开发进度
 - [x] 初始化 Git 仓库。
-- [x] 重构 `config.yaml` 结构，实现提取器配置的解耦，并更新 `src/config.py` 以匹配新结构。为 `config.yaml` 和 `src/config.py` 添加详细注释。
+- [x] 重构 `config.yaml` 结构，将抽取器配置模块化，并更新 `src/config.py` 以匹配新结构。为 `config.yaml` 和 `src/config.py` 添加详细注释。
+- [x] 实现 `dev.txt` 解析器（`src/parser.py`），其验证通过内部断言完成。
+- [x] 创建 `.gitignore` 文件。
+- [x] 创建 `src/context_index.py` 文件骨架，定义 `build_context_index` 函数原型。
+- [x] 创建 `src/video_utils.py` 文件骨架，定义 `sample_frames` 函数原型。
+- [x] 创建 `src/extractors/base.py` 文件骨架，定义 `FeatureExtractor` 抽象基类。
+- [x] 创建 `src/extractors/projection.py` 文件骨架，定义 `LinearProjection` PyTorch `nn.Module` 类骨架。
+- [x] 创建 `src/extractors/clip_extractor.py` 文件骨架，定义 `CLIPVisualExtractor` 类骨架。
+- [x] 整合 `main.py`，在 `run_pipeline` 中调用所有模块的接口原型，包括输出模块的接口。
 
-## 8. 下一步开发计划
-- 实现 `dev.txt` 解析器（`src/parser.py`），包含全面的防御性断言。
+## 8. 下一步开发计划 (具体实现)
+- [ ] 实现 `src/context_index.py` 中的 `build_context_index` 函数。
+- [ ] 实现 `src/extractors/projection.py` 中的 `LinearProjection` 模块的 `forward` 逻辑。
+- [ ] 实现 `src/extractors/clip_extractor.py` 中的 `CLIPVisualExtractor` 的 `__init__` 和 `extract` 逻辑。
 
 ### `src/parser.py` (待实现)
 - 负责解析 `dev.txt` 文件。
 - 定义 `UtteranceRecord` 和 `PersonEntry` 等 `dataclass` 来存储解析结果。
 - 包含严格的防御性断言，验证字段数量、格式、utterance 计数等。
 
-### `src/context_index.py` (待实现)
+### `src/context_index.py` (已实现并验证)
 - 构建上下文视频索引，用于快速查找某个对话中特定人物作为说话人的所有视频路径。
 - 主要用于非说话人特征的 "context_video" 策略。
 

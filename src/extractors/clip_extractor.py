@@ -1,5 +1,6 @@
 import clip
 import torch
+import torch.nn as nn # Added for LinearProjection
 import torch.nn.functional as F
 import torchvision.transforms as T
 from PIL import Image
@@ -8,8 +9,31 @@ from typing import List, Tuple, Any
 
 from src.config import VisualClipConfig, FrameSamplingConfig
 from src.extractors.base import FeatureExtractor
-from src.extractors.projection import LinearProjection
+# Removed: from src.extractors.projection import LinearProjection
 from src.video_utils import sample_frames
+
+# Integrated LinearProjection class
+class LinearProjection(nn.Module):
+    """
+    A simple linear projection layer to transform feature dimensions.
+    Used to project CLIP's output dimension (e.g., 512) to the target dimension (e.g., 1024).
+    """
+    def __init__(self, input_dim: int, output_dim: int):
+        super().__init__()
+        self.projection = nn.Linear(input_dim, output_dim)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Performs the linear projection.
+
+        Args:
+            x: Input tensor with shape (..., input_dim).
+
+        Returns:
+            Output tensor with shape (..., output_dim).
+        """
+        return self.projection(x)
+
 
 class CLIPVisualExtractor(FeatureExtractor):
     """
@@ -25,7 +49,7 @@ class CLIPVisualExtractor(FeatureExtractor):
         self.model, self.preprocess = clip.load(self.config.model_name, device=self.config.device)
         self.model.eval() # Set model to evaluation mode
 
-        # Initialize linear projection layer
+        # Initialize linear projection layer (now integrated)
         self.projection_layer = LinearProjection(self.config.clip_output_dim, self.config.target_dim).to(self.config.device)
 
         # Transforms for sampled frames (PIL Image -> CLIP preprocess -> Tensor)

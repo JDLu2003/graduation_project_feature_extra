@@ -2,6 +2,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Tuple
 
+# Use relative import for inter-package modules
 from src.parser import DialogueRecord, UtteranceRecord
 
 def build_context_index(
@@ -42,10 +43,22 @@ def build_context_index(
 
     return dict(context_index)
 
-# Example usage (for testing purposes, will be removed later or moved to main.py)
+# Example usage (for testing purposes)
 if __name__ == "__main__":
     import sys
-    sys.path.append(str(Path(__file__).parent.parent))
+    from pathlib import Path
+
+    # This sys.path modification is crucial for running this script directly
+    # while allowing it to resolve package-relative imports (like src.config, src.parser)
+    # when not run as part of a package.
+    # It temporarily adds the project root to sys.path.
+    script_dir = Path(__file__).resolve().parent
+    project_root = script_dir.parent
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+
+    # Now, import config and parser using their absolute paths relative to project_root
+    # (since this script is being run directly, it needs the full package path)
     from src.config import AppConfig
     from src.parser import parse_dev_txt
 
@@ -76,9 +89,10 @@ if __name__ == "__main__":
             print(f"  ({dialogue_id}, '{person_name}'): {len(video_paths)} videos, e.g., {video_paths[0].name if video_paths else 'N/A'}")
             count += 1
 
-        # Test case: person not speaking in any video
+        # Test case: person not speaking in any video (simple check)
         if (18, "SomeNonSpeaker") not in context_idx:
             print("\nSuccessfully confirmed 'SomeNonSpeaker' not in context index for Dialogue 18 (as expected).")
+
 
         print("\nContext index builder test successful!")
 
