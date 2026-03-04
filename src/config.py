@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Dict, Any
+from typing import Literal, Dict, Any, Union
 
 import yaml
 
@@ -26,8 +26,9 @@ class VisualClipConfig:
 
 @dataclass(frozen=True)
 class ExtractorConfig:
-    type: Literal["visual_clip"]
-    visual_clip: VisualClipConfig
+    active_type: Literal["visual_clip"]
+    # 不同的提取器配置作为可选字段
+    visual_clip_config: VisualClipConfig = field(default=None)
 
 @dataclass(frozen=True)
 class NonSpeakerConfig:
@@ -61,10 +62,12 @@ class AppConfig:
         assert paths_config.video_dir.exists(), f"video_dir path does not exist: {paths_config.video_dir}"
         # feat_out does not need to exist, it will be created
 
-        # Parse extractor config
-        extractor_type = config_data["extractor"]["type"]
-        if extractor_type == "visual_clip":
-            visual_clip_data = config_data["extractor"]["visual_clip"]
+        # Parse extractor config based on active_type
+        active_extractor_type = config_data["extractor"]["active_type"]
+        extractor_config_obj = ExtractorConfig(active_type=active_extractor_type)
+
+        if active_extractor_type == "visual_clip":
+            visual_clip_data = config_data.get("visual_clip_config", {})
             frame_sampling_config = FrameSamplingConfig(**visual_clip_data["frame_sampling"])
             visual_clip_config = VisualClipConfig(
                 model_name=visual_clip_data["model_name"],
@@ -73,17 +76,14 @@ class AppConfig:
                 target_dim=visual_clip_data["target_dim"],
                 frame_sampling=frame_sampling_config
             )
-            extractor_config = ExtractorConfig(
-                type=extractor_type,
-                visual_clip=visual_clip_config
-            )
+            extractor_config_obj.visual_clip_config = visual_clip_config
         else:
-            raise ValueError(f"Unsupported extractor type: {extractor_type}")
+            raise ValueError(f"Unsupported active extractor type: {active_extractor_type}")
 
 
         return cls(
             paths=paths_config,
-            extractor=extractor_config,
+            extractor=extractor_config_obj,
             non_speaker=NonSpeakerConfig(**config_data["non_speaker"]),
             pipeline=PipelineConfig(**config_data["pipeline"])
         )

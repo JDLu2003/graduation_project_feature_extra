@@ -9,26 +9,29 @@ paths:
   feat_out:  "../feat_out/Video_en_dev"
 
 extractor:
-  # type: 当前使用的特征提取器类型，例如 "visual_clip"
-  type: "visual_clip"
-  # visual_clip: CLIP 视觉特征提取器的配置
-  visual_clip:
-    # model_name: 使用的 CLIP 模型名称，例如 "ViT-B/32", "RN50"
-    model_name: "ViT-B/32"
-    # device: 计算设备 ("cpu", "cuda", "mps")
-    device: "cpu"           # 或 "cuda" / "mps"
-    # clip_output_dim: CLIP 模型原始输出特征维度 (例如 ViT-B/32 为 512)
-    clip_output_dim: 512
-    # target_dim: 最终特征的目标维度，所有特征将被投影到此维度 (例如 1024)
-    target_dim: 1024
-    # frame_sampling: 视频帧采样配置
-    frame_sampling:
-      # strategy: 视频帧采样策略 ("uniform": 均匀采样, "middle": 取中间帧, "first": 取第一帧)
-      strategy: "uniform"     # "uniform" | "middle" | "first"
-      # num_frames: 每次采样帧的数量
-      num_frames: 8
-      # aggregation: 对采样帧提取的特征进行聚合的方式 ("mean": 平均, "max": 最大值)
-      aggregation: "mean"     # "mean" | "max"
+  # active_type: 指定当前活跃的特征提取器类型。
+  # 不同的提取器有其独立的配置块，例如 'visual_clip_config' 或 'text_bert_config'。
+  # 框架会根据此字段选择并加载相应的配置。
+  active_type: "visual_clip"
+
+# visual_clip_config: CLIP 视觉特征提取器的独立配置块
+visual_clip_config:
+  # model_name: 使用的 CLIP 模型名称，例如 "ViT-B/32", "RN50"
+  model_name: "ViT-B/32"
+  # device: 计算设备 ("cpu", "cuda", "mps")
+  device: "cpu"           # 或 "cuda" / "mps"
+  # clip_output_dim: CLIP 模型原始输出特征维度 (例如 ViT-B/32 为 512)
+  clip_output_dim: 512
+  # target_dim: 最终特征的目标维度，所有特征将被投影到此维度 (例如 1024)
+  target_dim: 1024
+  # frame_sampling: 视频帧采样配置
+  frame_sampling:
+    # strategy: 视频帧采样策略 ("uniform": 均匀采样, "middle": 取中间帧, "first": 取第一帧)
+    strategy: "uniform"     # "uniform" | "middle" | "first"
+    # num_frames: 每次采样帧的数量
+    num_frames: 8
+    # aggregation: 对采样帧提取的特征进行聚合的方式 ("mean": 平均, "max": 最大值)
+    aggregation: "mean"     # "mean" | "max"
 
 non_speaker:
   # strategy: 非说话人特征提取策略 ("context_video": 上下文视频推断)
