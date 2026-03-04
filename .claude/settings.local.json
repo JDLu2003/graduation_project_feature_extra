@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(conda run -n security python --version 2>&1)",
+      "Bash(conda run -n security pip list 2>&1)",
+      "Bash(conda run -n security pip install opencv-python)",
+      "Bash(git init && git add . && git commit -m \"chore: initialize git repo\")"
+    ]
+  }
+}
