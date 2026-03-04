@@ -1,24 +1,46 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List, Any
+from typing import List
 import torch
 
+# Assuming DialogueRecord is defined elsewhere, or will be defined.
+# For now, using Any to avoid import cycles.
+from typing import Any # Placeholder for DialogueRecord
+
+
 class FeatureExtractor(ABC):
-    """
-    Abstract Base Class for all feature extractors.
-    Ensures that any new extractor implements the core 'extract' method
-    and provides its output dimension.
-    """
     @abstractmethod
-    def extract(self, video_path: Path) -> torch.Tensor:
+    def prepare(self, dialogue_records: List[Any], video_base_dir: Path) -> None:
         """
-        Extracts features from a given video path.
+        Prepares the extractor for processing, e.g., building context indexes.
+        """
+        pass
+
+    @abstractmethod
+    def extract_speaker(self, video_path: Path) -> torch.Tensor:
+        """
+        Extracts features for a speaker from a given video path.
 
         Args:
             video_path: The path to the video file.
 
         Returns:
-            A torch.Tensor representing the extracted features (e.g., [1, DIMS]).
+            A torch.Tensor representing the extracted features for the speaker (e.g., [1, DIMS]).
+        """
+        pass
+
+    @abstractmethod
+    def extract_non_speaker(self, person_name: str, dialogue_id: int) -> torch.Tensor:
+        """
+        Extracts features for a non-speaker.
+        This might involve looking up pre-indexed features, generating, or using fallback.
+
+        Args:
+            person_name: The name of the non-speaker.
+            dialogue_id: The ID of the dialogue context.
+
+        Returns:
+            A torch.Tensor representing the extracted features for the non-speaker (e.g., [1, DIMS]).
         """
         pass
 
@@ -29,5 +51,3 @@ class FeatureExtractor(ABC):
         Returns the output dimension of the features produced by this extractor.
         """
         pass
-
-# No direct execution for ABC

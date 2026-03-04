@@ -11,7 +11,20 @@
       "Bash(python src/parser.py)",
       "Bash(python src/video_utils.py)",
       "Bash(git add src/video_utils.py && git commit -m \"feat: add video_utils.py with frame sampling prototype\")",
-      "Bash(git add .claude/settings.local.json CLAUDE.md PROGRESS.md src/config.py .gitignore main.py src/__init__.py src/context_index.py src/extractors/ src/parser.py && git commit -m \"feat: setup full project skeleton and .gitignore\")"
+      "Bash(git add .claude/settings.local.json CLAUDE.md PROGRESS.md src/config.py .gitignore main.py src/__init__.py src/context_index.py src/extractors/ src/parser.py && git commit -m \"feat: setup full project skeleton and .gitignore\")",
+      "Bash(python src/context_index.py)",
+      "Bash(python -m src.context_index)",
+      "Bash(git add PROGRESS.md WORKING.md main.py src/context_index.py src/extractors/clip_extractor.py src/extractors/projection.py && git commit -m \"$\\(cat <<'EOF'\nfeat: update progress docs, fix context_index imports, and refactor LinearProjection into CLIPVisualExtractor\n\n- Marked src/context_index.py as implemented and verified in PROGRESS.md and WORKING.md.\n- Corrected import statements in src/context_index.py to use absolute imports from src, resolving ModuleNotFoundError when run directly.\n- Moved LinearProjection class definition from src/extractors/projection.py directly into src/extractors/clip_extractor.py as per architectural feedback.\n- Deleted the now redundant src/extractors/projection.py file.\n- Updated main.py to reflect integration of context index building, extractor initialization, and the full feature extraction and saving pipeline loop.\n- Ensured .claude/settings.local.json is not included in the commit.\nCo-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(python -m src.extractors.clip_extractor)",
+      "Bash(conda run -n security pip install clip)",
+      "Bash(conda run -n security pip list)",
+      "Bash(conda run -n security python -c \"import clip; print\\(f'clip module found: {clip.__file__}'\\); model, preprocess = clip.load\\('ViT-B/32', device='cpu'\\); print\\('CLIP model loaded successfully'\\)\")",
+      "Bash(conda run -n security python -m src.extractors.clip_extractor)",
+      "Bash(git add PROGRESS.md WORKING.md && git commit -m \"$\\(cat <<'EOF'\nfeat: mark CLIPVisualExtractor as implemented and verified\n\n- Updated PROGRESS.md to mark CLIPVisualExtractor as implemented and verified.\n- Updated WORKING.md to mark CLIPVisualExtractor as implemented and verified.\n- Removed debug sys.path print statement from src/extractors/clip_extractor.py.\nCo-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(conda run -n security python -m src.video_utils)",
+      "Bash(conda run -n security python -m src.extractors.visual_clip.strategy)",
+      "Bash(conda run -n security python main.py --config config.yaml)",
+      "Bash(git add .)"
     ]
   }
 }
