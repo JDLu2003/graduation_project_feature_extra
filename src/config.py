@@ -27,8 +27,7 @@ class VisualClipConfig:
 @dataclass(frozen=True)
 class ExtractorConfig:
     active_type: Literal["visual_clip"]
-    # 不同的提取器配置作为可选字段
-    visual_clip_config: VisualClipConfig = field(default=None)
+    visual_clip_config: VisualClipConfig | None = None # Make it optional and correctly typed
 
 @dataclass(frozen=True)
 class NonSpeakerConfig:
@@ -64,22 +63,25 @@ class AppConfig:
 
         # Parse extractor config based on active_type
         active_extractor_type = config_data["extractor"]["active_type"]
-        extractor_config_obj = ExtractorConfig(active_type=active_extractor_type)
 
+        visual_clip_config_instance: VisualClipConfig | None = None
         if active_extractor_type == "visual_clip":
             visual_clip_data = config_data.get("visual_clip_config", {})
             frame_sampling_config = FrameSamplingConfig(**visual_clip_data["frame_sampling"])
-            visual_clip_config = VisualClipConfig(
+            visual_clip_config_instance = VisualClipConfig(
                 model_name=visual_clip_data["model_name"],
                 device=visual_clip_data["device"],
                 clip_output_dim=visual_clip_data["clip_output_dim"],
                 target_dim=visual_clip_data["target_dim"],
                 frame_sampling=frame_sampling_config
             )
-            extractor_config_obj.visual_clip_config = visual_clip_config
         else:
             raise ValueError(f"Unsupported active extractor type: {active_extractor_type}")
 
+        extractor_config_obj = ExtractorConfig(
+            active_type=active_extractor_type,
+            visual_clip_config=visual_clip_config_instance # Pass directly during initialization
+        )
 
         return cls(
             paths=paths_config,

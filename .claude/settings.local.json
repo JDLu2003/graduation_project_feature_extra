@@ -4,7 +4,14 @@
       "Bash(conda run -n security python --version 2>&1)",
       "Bash(conda run -n security pip list 2>&1)",
       "Bash(conda run -n security pip install opencv-python)",
-      "Bash(git init && git add . && git commit -m \"chore: initialize git repo\")"
+      "Bash(git init && git add . && git commit -m \"chore: initialize git repo\")",
+      "Bash(git add config.yaml src/config.py PROGRESS.md && git commit -m \"feat: refactor config for modularity and update config loader\")",
+      "Bash(git add config.yaml src/config.py PROGRESS.md WORKING.md && git commit -m \"feat: refactor config for extractor decoupling and update config loader\")",
+      "Bash(conda run -n security pip install pytest)",
+      "Bash(python src/parser.py)",
+      "Bash(python src/video_utils.py)",
+      "Bash(git add src/video_utils.py && git commit -m \"feat: add video_utils.py with frame sampling prototype\")",
+      "Bash(git add .claude/settings.local.json CLAUDE.md PROGRESS.md src/config.py .gitignore main.py src/__init__.py src/context_index.py src/extractors/ src/parser.py && git commit -m \"feat: setup full project skeleton and .gitignore\")"
     ]
   }
 }
