@@ -14,5 +14,5 @@
 - [x] 整合 main.py，在 run_pipeline 中调用所有模块的接口原型，包括输出模块的接口。
 - [x] 实现上下文索引构建器，用于非说话人视频查找 (已验证)
 - [ ] 实现视频帧采样器，支持 uniform/middle/first 策略 (具体实现)
-- [ ] 实现 512→1024 线性投影模块 (具体实现)
-- [ ] 实现 CLIPVisualExtractor，包含帧聚合和 L2-norm (具体实现)
+- [x] 实现 512→1024 线性投影模块 (已整合到 CLIPVisualExtractor)
+- [x] 实现 CLIPVisualExtractor，包含帧聚合和 L2-norm (已验证)
