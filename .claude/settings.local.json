@@ -24,7 +24,8 @@
       "Bash(conda run -n security python -m src.video_utils)",
       "Bash(conda run -n security python -m src.extractors.visual_clip.strategy)",
       "Bash(conda run -n security python main.py --config config.yaml)",
-      "Bash(git add .)"
+      "Bash(git add .)",
+      "Bash(git commit -m \"$\\(cat <<'EOF'\nfeat: 添加日志打印，提升 pipeline 可观测性\n\n在关键模块和 pipeline 中增加了详细的日志输出，以便于跟踪和调试。\n- `src/extractors/visual_clip/clip_encoder.py`: 增加模型加载和空帧警告日志。\n- `src/extractors/visual_clip/strategy.py`: 增加非说话人上下文视频查找和视频文件缺失警告日志。\n- `src/pipeline.py`: 增加处理每个 utterance 的日志。\n- `src/saver.py`: 取消了跳过现有文件时的日志注释。\n\n此提交还包含了之前的文件结构重构和相关文件调整。\n\nCo-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }

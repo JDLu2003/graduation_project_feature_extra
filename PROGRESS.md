@@ -16,3 +16,17 @@
 - [ ] 实现视频帧采样器，支持 uniform/middle/first 策略 (具体实现)
 - [x] 实现 512→1024 线性投影模块 (已整合到 CLIPVisualExtractor)
 - [x] 实现 CLIPVisualExtractor，包含帧聚合和 L2-norm (已验证)
+
+
+## 2026-03-04 - 添加日志打印和文件结构重构
+
+- **任务描述**: 在 pipeline 和关键模块中添加打印信息，提升可观测性。同时，进行了文件结构重构。
+- **完成内容**:
+    - 在 `src/extractors/visual_clip/clip_encoder.py` 中添加了 CLIP 模型加载和空帧警告日志。
+    - 在 `src/extractors/visual_clip/strategy.py` 中添加了非说话人上下文视频查找和视频文件缺失警告日志。
+    - 在 `src/pipeline.py` 中添加了处理每个 utterance 的日志。
+    - 在 `src/saver.py` 中取消了跳过现有文件时的日志注释。
+    - 对项目文件结构进行了重大调整，包括添加新的模块文件，并删除旧的模块文件。
+- **Git 提交**: `feat: 添加日志打印，提升 pipeline 可观测性` (`6bebf23`)
+- **验证**: 运行 `conda run -n security python main.py --config config.yaml` 命令，确认所有预期日志输出均已正确显示。
+- **后续计划**: 继续根据 CLAUDE.md 中的指导原则进行下一步的特征提取实现。

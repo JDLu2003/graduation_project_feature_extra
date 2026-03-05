@@ -57,8 +57,10 @@ class AppConfig:
             video_dir=Path(config_data["paths"]["video_dir"]),
             feat_out=Path(config_data["paths"]["feat_out"])
         )
-        assert paths_config.dev_txt.exists(), f"dev_txt path does not exist: {paths_config.dev_txt}"
-        assert paths_config.video_dir.exists(), f"video_dir path does not exist: {paths_config.video_dir}"
+        if not paths_config.dev_txt.exists():
+            raise FileNotFoundError(f"dev_txt path does not exist: {paths_config.dev_txt}")
+        if not paths_config.video_dir.exists():
+            raise FileNotFoundError(f"video_dir path does not exist: {paths_config.video_dir}")
         # feat_out does not need to exist, it will be created
 
         # Parse extractor config based on active_type
