@@ -24,7 +24,7 @@ def save_features(
         return True
 
     try:
-        torch.save(features, output_path)
+        torch.save(features, output_path) # type: ignore
         # Optional: Load back and verify (as per CLAUDE.md)
         # loaded_features = torch.load(output_path)
         # assert torch.equal(features, loaded_features), "Feature save/load verification failed!"
@@ -67,7 +67,7 @@ if __name__ == "__main__":
         if success:
             print("Dummy features saved successfully!")
             # Verify by loading
-            loaded_features = torch.load(dummy_output_path)
+            loaded_features = torch.load(dummy_output_path) # type: ignore
             assert torch.equal(dummy_features, loaded_features), "Saved features mismatch loaded features!"
             print(f"Loaded features shape: {loaded_features.shape}")
 
