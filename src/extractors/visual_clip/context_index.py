@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 # Use relative import for inter-package modules
-from src.parser import DialogueRecord, UtteranceRecord
+from src.parser import DialogueRecord
 
 def build_context_index(
     dialogue_records: List[DialogueRecord], video_base_dir: Path
