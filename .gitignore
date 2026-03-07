@@ -42,8 +42,12 @@ conda-meta/
 # Deep learning frameworks
 *.pt # PyTorch saved models/tensors
 # Custom additions for this project
-data_set/ # Input data, should not be committed
-feat_out/ # Output features, should not be committed
+# Input data, should not be committed
+data_set/
+# Output features, should not be committed
+feat_out/
+# Runtime logs and analysis reports, should not be committed
+logs/
 
 # Temporary files from various tools
 *.tmp
