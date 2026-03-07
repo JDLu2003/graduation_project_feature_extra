@@ -10,6 +10,7 @@ if str(project_root) not in sys.path:
 from src.config import AppConfig  # noqa: E402
 from src.parser import parse_dev_txt, DialogueRecord  # noqa: E402
 from src.extractors.visual_clip.strategy import VisualCLIPStrategy  # noqa: E402
+from src.extractors.face_scene_fr.strategy import FaceSceneFRStrategy  # noqa: E402
 from src.pipeline import run_pipeline  # noqa: E402
 
 
@@ -71,6 +72,12 @@ def main() -> None:
             sys.exit(1)
         print("[main] Initializing VisualCLIPStrategy...")
         extractor = VisualCLIPStrategy(app_config.extractor.visual_clip_config, app_config.non_speaker)
+    elif app_config.extractor.active_type == "face_scene_fr":
+        if app_config.extractor.face_scene_fr_config is None:
+            print("[main] Error: face_scene_fr_config is missing in config.yaml.")
+            sys.exit(1)
+        print("[main] Initializing FaceSceneFRStrategy...")
+        extractor = FaceSceneFRStrategy(app_config.extractor.face_scene_fr_config, app_config.non_speaker)
     else:
         print(f"[main] Unsupported extractor type: {app_config.extractor.active_type}")
         sys.exit(1)

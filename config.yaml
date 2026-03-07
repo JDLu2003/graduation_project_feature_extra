@@ -6,13 +6,13 @@ paths:
   # video_dir: 视频文件根目录，程序将在此目录下查找具体对话的视频文件夹
   video_dir: "../data_set/Viedeo_en_dev/Video_en_dev"
   # feat_out: 特征输出的根目录，输出结构将镜像输入视频的目录结构
-  feat_out:  "../feat_out/Video_en_dev"
+  feat_out:  "../feat_out/Video_en_dev_face_scene_fr"
 
 extractor:
   # active_type: 指定当前活跃的特征提取器类型。
-  # 不同的提取器有其独立的配置块，例如 'visual_clip_config' 或 'text_bert_config'。
+  # 不同的提取器有其独立的配置块，例如 'visual_clip_config' 或 'face_scene_fr_config'。
   # 框架会根据此字段选择并加载相应的配置。
-  active_type: "visual_clip"
+  active_type: "face_scene_fr"
 
 # visual_clip_config: CLIP 视觉特征提取器的独立配置块
 visual_clip_config:
@@ -33,6 +33,42 @@ visual_clip_config:
     # aggregation: 对采样帧提取的特征进行聚合的方式 ("mean": 平均, "max": 最大值)
     aggregation: "mean"     # "mean" | "max"
 
+# face_scene_fr_config: 人物512 + 环境512 的特征提取器配置
+face_scene_fr_config:
+  # 计算设备 ("cpu", "cuda", "mps")
+  device: "mps"
+  # 训练好的 facenet-fr 模型 checkpoint 路径（用于人脸识别 + 人物 embedding 提取）
+  face_checkpoint: "face_name_id/artifacts/facenet_fr/outputs/checkpoints/best.pt"
+  # 环境特征使用 CLIP 的全局场景编码
+  clip_model_name: "ViT-B/32"
+
+  # 视频采样策略（同时用于人脸识别与环境编码）
+  frame_sampling:
+    strategy: "uniform"     # "uniform" | "middle" | "first"
+    num_frames: 8
+    aggregation: "mean"     # "mean" | "max"
+
+  # MTCNN 人脸检测参数
+  mtcnn_image_size: 160
+  mtcnn_margin: 12
+  mtcnn_min_face_size: 24
+  mtcnn_thresholds: [0.6, 0.7, 0.7]
+  mtcnn_keep_all: true
+
+  # 过滤阈值
+  min_detection_confidence: 0.95
+  # 分类策略：
+  # - top1: 仅取最大类别，不做分类概率阈值过滤（推荐）
+  # - top1_with_threshold: 取最大类别，但低于 min_classification_confidence 时丢弃
+  classification_strategy: "top1"
+  min_classification_confidence: 0.50
+
+  # 非主角/未知名字回退策略（当标注名字不在训练标签里）
+  # - zero: 人物特征置零
+  # - other_mean: 使用当前语句中被判为 other 的人脸 embedding 均值
+  unknown_person_strategy: "other_mean"
+  other_label_name: "other"
+
 non_speaker:
   # strategy: 非说话人特征提取策略 ("context_video": 上下文视频推断)
   strategy: "context_video"
@@ -41,6 +77,6 @@ non_speaker:
 
 pipeline:
   # skip_existing: 如果目标特征文件已存在，是否跳过 (true: 跳过, false: 覆盖)
-  skip_existing: true
+  skip_existing: false
   # show_progress: 是否显示处理进度条
   show_progress: true

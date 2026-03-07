@@ -1,0 +1,1 @@
+"""FaceScene-FR extractor package."""
