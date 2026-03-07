@@ -109,7 +109,7 @@ if __name__ == "__main__":
         video_file_name = f"C_{first_utterance.dialogue_id}_U_{first_utterance.utterance_idx}.mp4"
         test_video_path = video_base_dir / dialogue_folder_name / video_file_name
 
-        print(f"--- Testing Frame Sampling ---")
+        print("--- Testing Frame Sampling ---")
         print(f"Video path: {test_video_path}")
         print(f"Strategy: {frame_sampling_config.strategy}, Num Frames: {frame_sampling_config.num_frames}")
 

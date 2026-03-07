@@ -1,7 +1,6 @@
 import clip
 import torch
 import torch.nn.functional as F
-import torchvision.transforms as T
 from PIL import Image
 from pathlib import Path
 from typing import List
@@ -22,7 +21,8 @@ class CLIPEncoder:
         self._output_dim = config.target_dim
 
         # Load CLIP model
-        self.model, self.preprocess = clip.load(self.config.model_name, device=self.config.device)
+        self.model, self.preprocess = clip.load(
+            self.config.model_name, device=self.config.device)
         self.model.eval()  # Set model to evaluation mode
 
         # Note: LinearProjection is intentionally NOT used here.
@@ -65,7 +65,8 @@ class CLIPEncoder:
             FileNotFoundError: If video_path does not exist.
         """
         if not video_path.exists():
-            raise FileNotFoundError(f"Video file not found for encoding: {video_path}")
+            raise FileNotFoundError(
+                f"Video file not found for encoding: {video_path}")
 
         # 1. Sample frames from video
         sampled_frames_np = sample_frames(
@@ -86,29 +87,35 @@ class CLIPEncoder:
             processed_frames_tensors.append(self.transforms(frame_rgb))
 
         # Stack into a single batch tensor
-        frame_batch = torch.stack(processed_frames_tensors).to(self.config.device)
+        frame_batch = torch.stack(
+            processed_frames_tensors).to(self.config.device)
 
         # 3. Extract features using CLIP
         with torch.no_grad():
-            clip_features = self.model.encode_image(frame_batch)  # [num_sampled_frames, clip_output_dim]
+            # [num_sampled_frames, clip_output_dim]
+            clip_features = self.model.encode_image(frame_batch)
 
         # 4. Aggregate features across sampled frames
         if self.config.frame_sampling.aggregation == "mean":
-            aggregated_features = clip_features.mean(dim=0, keepdim=True)  # [1, clip_output_dim]
+            aggregated_features = clip_features.mean(
+                dim=0, keepdim=True)  # [1, clip_output_dim]
         elif self.config.frame_sampling.aggregation == "max":
-            aggregated_features = clip_features.max(dim=0, keepdim=True).values  # [1, clip_output_dim]
+            aggregated_features = clip_features.max(
+                dim=0, keepdim=True).values  # [1, clip_output_dim]
         else:
             raise ValueError(f"Unsupported aggregation strategy: {self.config.frame_sampling.aggregation}")
 
         # 5. L2 normalize BEFORE zero-padding.
         #    Normalizing after padding would dilute the norm with the padded zeros and
         #    break the unit-norm property of the meaningful sub-space.
-        l2_normalized: torch.Tensor = F.normalize(aggregated_features, p=2, dim=-1)  # [1, clip_output_dim]
+        l2_normalized: torch.Tensor = F.normalize(
+            aggregated_features, p=2, dim=-1)  # [1, clip_output_dim]
 
         # 6. Zero-pad from clip_output_dim to target_dim.
         #    This preserves the pretrained CLIP feature distribution intact.
         #    The padded zeros simply occupy the remaining dimensions without interference.
-        padded_features: torch.Tensor = F.pad(l2_normalized, (0, self._pad_size))  # [1, target_dim]
+        padded_features: torch.Tensor = F.pad(
+            l2_normalized, (0, self._pad_size))  # [1, target_dim]
 
         # Internal consistency check (not external input — kept as assert)
         assert padded_features.shape == (1, self.output_dim), (

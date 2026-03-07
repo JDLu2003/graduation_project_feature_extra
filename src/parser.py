@@ -3,7 +3,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
-# 正则：匹配 "emotion_label (score_or_null)" 格式，容忍首尾空白与内部多余空格
+# 正则：匹配 "emotion_label (cause_idx_or_null)" 格式，容忍首尾空白与内部多余空格
+# 括号内的值代表诱发该情绪的句子编号（utterance_idx），或 "null" 表示无明确诱因
 _EMOTION_PATTERN = re.compile(r"^\s*(\w+)\s*\(\s*([^)]*?)\s*\)\s*$")
 
 
@@ -12,7 +13,7 @@ class PersonEntry:
     """Represents a person (speaker or listener) in an utterance."""
     name: str
     emotion: str
-    emotion_score: int  # -1 表示 null 或无法解析的分数
+    emotion_cause_idxs: List[int] = field(default_factory=list)  # 诱发该情绪的句子编号列表（utterance_idx），空列表表示 null (无明确诱因)
 
 
 @dataclass(frozen=True)
@@ -32,16 +33,20 @@ class DialogueRecord:
     utterances: List[UtteranceRecord] = field(default_factory=list)
 
 
-def _parse_emotion(emotion_str: str, line_num: int) -> tuple[str, int]:
+def _parse_emotion(emotion_str: str, line_num: int) -> tuple[str, List[int]]:
     """
-    使用正则表达式解析情绪字段，如 "neutral (null)" 或 "joy (1)"。
+    使用正则表达式解析情绪字段，如 "neutral (null)" 或 "joy (1)" 或 "anger (5, 6)"。
+    括号内的值可以是：
+    - "null" 或空：无明确诱因（返回空列表）
+    - 单个整数：诱发该情绪的句子编号
+    - 逗号分隔的整数列表：多个诱发句子编号
 
     Args:
         emotion_str: 原始情绪字符串，可能含多余空白或异常字符。
         line_num: 文件行号，用于错误信息定位。
 
     Returns:
-        (emotion_label, emotion_score) 元组。emotion_score 为 -1 表示 null 或无效值。
+        (emotion_label, emotion_cause_idxs) 元组。emotion_cause_idxs 为空列表表示 null 或无效值。
 
     Raises:
         ValueError: 若字符串完全无法匹配预期格式。
@@ -52,18 +57,34 @@ def _parse_emotion(emotion_str: str, line_num: int) -> tuple[str, int]:
             f"Line {line_num}: Malformed emotion string, cannot parse: '{emotion_str}'"
         )
     emotion_label = match.group(1).strip()
-    score_str = match.group(2).strip()
+    cause_str = match.group(2).strip()
 
-    if score_str == "null" or score_str == "":
-        emotion_score = -1
-    elif score_str.lstrip("-").isdigit():
-        emotion_score = int(score_str)
+    emotion_cause_idxs: List[int] = []
+
+    if cause_str == "null" or cause_str == "":
+        # 无明确诱因，返回空列表
+        emotion_cause_idxs = []
     else:
-        # 容忍脏数据：无法识别的分数降级为 -1，打印警告
-        print(f"[parser] Warning: Line {line_num}: Unrecognized emotion score '{score_str}', defaulting to -1.")
-        emotion_score = -1
+        # 尝试解析逗号分隔的索引列表
+        parts = [p.strip() for p in cause_str.split(",")]
+        valid_indices = []
+        all_valid = True
+        
+        for part in parts:
+            if part.isdigit():
+                valid_indices.append(int(part))
+            else:
+                all_valid = False
+                break
+        
+        if all_valid and valid_indices:
+            emotion_cause_idxs = valid_indices
+        else:
+            # 无法识别的格式，打印警告并返回空列表
+            print(f"[parser] Warning: Line {line_num}: Unrecognized emotion cause format '{cause_str}', defaulting to empty list.")
+            emotion_cause_idxs = []
 
-    return emotion_label, emotion_score
+    return emotion_label, emotion_cause_idxs
 
 
 def parse_dev_txt(file_path: Path) -> List[DialogueRecord]:
@@ -109,6 +130,27 @@ def parse_dev_txt(file_path: Path) -> List[DialogueRecord]:
                             f"Line {line_num}: Dialogue {current_dialogue.dialogue_id} ended with "
                             f"{actual_utterances_count} utterances, expected {expected_utterances_count}."
                         )
+                    
+                    # 防御性断言：验证所有 emotion_cause_idx 的合法性
+                    for utterance in current_dialogue.utterances:
+                        # 验证说话人的情绪诱因索引
+                        for cause_idx in utterance.speaker.emotion_cause_idxs:
+                            if cause_idx != -1 and not (1 <= cause_idx <= expected_utterances_count):
+                                raise ValueError(
+                                    f"Dialogue {current_dialogue.dialogue_id}, Utterance {utterance.utterance_idx}: "
+                                    f"Speaker '{utterance.speaker.name}' has invalid emotion_cause_idx "
+                                    f"{cause_idx} (must be in range [1, {expected_utterances_count}] or -1)."
+                                )
+                        # 验证听众的情绪诱因索引
+                        for listener in utterance.listeners:
+                            for cause_idx in listener.emotion_cause_idxs:
+                                if cause_idx != -1 and not (1 <= cause_idx <= expected_utterances_count):
+                                    raise ValueError(
+                                        f"Dialogue {current_dialogue.dialogue_id}, Utterance {utterance.utterance_idx}: "
+                                        f"Listener '{listener.name}' has invalid emotion_cause_idx "
+                                        f"{cause_idx} (must be in range [1, {expected_utterances_count}] or -1)."
+                                    )
+                    
                     dialogues.append(current_dialogue)
 
                 dialogue_id = int(parts_space[0])
@@ -142,11 +184,11 @@ def parse_dev_txt(file_path: Path) -> List[DialogueRecord]:
                 speaker_emotion_str = parts_pipe[3].strip()
 
                 # 解析说话人情绪
-                speaker_emotion, speaker_emotion_score = _parse_emotion(speaker_emotion_str, line_num)
+                speaker_emotion, speaker_emotion_cause_idxs = _parse_emotion(speaker_emotion_str, line_num)
                 speaker = PersonEntry(
                     name=speaker_name,
                     emotion=speaker_emotion,
-                    emotion_score=speaker_emotion_score,
+                    emotion_cause_idxs=speaker_emotion_cause_idxs,
                 )
 
                 # 解析听众（每两个字段为一组：名字 + 情绪）
@@ -160,12 +202,12 @@ def parse_dev_txt(file_path: Path) -> List[DialogueRecord]:
                         )
                     listener_name = parts_pipe[i].strip()
                     listener_emotion_str = parts_pipe[i + 1].strip()
-                    listener_emotion, listener_emotion_score = _parse_emotion(listener_emotion_str, line_num)
+                    listener_emotion, listener_emotion_cause_idxs = _parse_emotion(listener_emotion_str, line_num)
                     listeners.append(
                         PersonEntry(
                             name=listener_name,
                             emotion=listener_emotion,
-                            emotion_score=listener_emotion_score,
+                            emotion_cause_idxs=listener_emotion_cause_idxs,
                         )
                     )
                     i += 2
@@ -194,6 +236,27 @@ def parse_dev_txt(file_path: Path) -> List[DialogueRecord]:
                 f"Dialogue {current_dialogue.dialogue_id}: ended with {actual_utterances_count} "
                 f"utterances, expected {expected_utterances_count}."
             )
+        
+        # 防御性断言：验证所有 emotion_cause_idx 的合法性
+        for utterance in current_dialogue.utterances:
+            # 验证说话人的情绪诱因索引
+            for cause_idx in utterance.speaker.emotion_cause_idxs:
+                if cause_idx != -1 and not (1 <= cause_idx <= expected_utterances_count):
+                    raise ValueError(
+                        f"Dialogue {current_dialogue.dialogue_id}, Utterance {utterance.utterance_idx}: "
+                        f"Speaker '{utterance.speaker.name}' has invalid emotion_cause_idx "
+                        f"{cause_idx} (must be in range [1, {expected_utterances_count}] or -1)."
+                    )
+            # 验证听众的情绪诱因索引
+            for listener in utterance.listeners:
+                for cause_idx in listener.emotion_cause_idxs:
+                    if cause_idx != -1 and not (1 <= cause_idx <= expected_utterances_count):
+                        raise ValueError(
+                            f"Dialogue {current_dialogue.dialogue_id}, Utterance {utterance.utterance_idx}: "
+                            f"Listener '{listener.name}' has invalid emotion_cause_idx "
+                            f"{cause_idx} (must be in range [1, {expected_utterances_count}] or -1)."
+                        )
+        
         dialogues.append(current_dialogue)
 
     return dialogues
@@ -240,7 +303,7 @@ if __name__ == "__main__":
                         f"Dialogue {utterance.dialogue_id}, Utterance {utterance.utterance_idx}: {video_path}"
                     )
 
-        print(f"\n--- Video File Verification Summary ---")
+        print("\n--- Video File Verification Summary ---")
         print(f"Total utterances processed: {total_utterances}")
         print(f"Video files found: {video_files_found}")
         print(f"Video files missing: {video_files_missing}")

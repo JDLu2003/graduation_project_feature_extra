@@ -72,7 +72,7 @@ if __name__ == "__main__":
             print(f"Loaded features shape: {loaded_features.shape}")
 
             # Test skip_existing
-            print(f"Attempting to save dummy features again (skip_existing=True)...")
+            print("Attempting to save dummy features again (skip_existing=True)...")
             success_skip = save_features(dummy_features, dummy_output_path, skip_existing=True)
             if success_skip:
                 print("Skipped existing features successfully.")

@@ -19,7 +19,7 @@ visual_clip_config:
   # model_name: 使用的 CLIP 模型名称，例如 "ViT-B/32", "RN50"
   model_name: "ViT-B/32"
   # device: 计算设备 ("cpu", "cuda", "mps")
-  device: "cpu"           # 或 "cuda" / "mps"
+  device: "mps"           # 或 "cuda" / "mps"
   # clip_output_dim: CLIP 模型原始输出特征维度 (例如 ViT-B/32 为 512)
   clip_output_dim: 512
   # target_dim: 最终特征的目标维度，所有特征将被投影到此维度 (例如 1024)

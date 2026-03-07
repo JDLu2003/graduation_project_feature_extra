@@ -1,16 +1,16 @@
 import argparse
+import sys  # noqa: E402
 from pathlib import Path
-import sys
+from typing import List
 
 project_root = Path(__file__).resolve().parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from src.config import AppConfig
-from src.parser import parse_dev_txt, DialogueRecord
-from src.extractors.visual_clip.strategy import VisualCLIPStrategy
-from src.pipeline import run_pipeline
-from typing import List
+from src.config import AppConfig  # noqa: E402
+from src.parser import parse_dev_txt, DialogueRecord  # noqa: E402
+from src.extractors.visual_clip.strategy import VisualCLIPStrategy  # noqa: E402
+from src.pipeline import run_pipeline  # noqa: E402
 
 
 def main() -> None:
