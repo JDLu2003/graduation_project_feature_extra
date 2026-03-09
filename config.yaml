@@ -47,6 +47,8 @@ face_scene_fr_config:
     strategy: "uniform"     # "uniform" | "middle" | "first"
     num_frames: 8
     aggregation: "mean"     # "mean" | "max"
+  # 人脸分支使用的帧数（<= frame_sampling.num_frames），用于单独控制推理开销
+  person_num_frames: 3
 
   # MTCNN 人脸检测参数
   mtcnn_image_size: 160
@@ -54,6 +56,8 @@ face_scene_fr_config:
   mtcnn_min_face_size: 24
   mtcnn_thresholds: [0.6, 0.7, 0.7]
   mtcnn_keep_all: true
+  # FaceNet 推理批大小（越大吞吐越高，但占用更多内存）
+  face_batch_size: 64
 
   # 过滤阈值
   min_detection_confidence: 0.95

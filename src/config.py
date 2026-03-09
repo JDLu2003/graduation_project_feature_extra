@@ -34,11 +34,13 @@ class FaceSceneFRConfig:
     face_checkpoint: Path
     clip_model_name: str
     frame_sampling: FrameSamplingConfig
+    person_num_frames: int
     mtcnn_image_size: int
     mtcnn_margin: int
     mtcnn_min_face_size: int
     mtcnn_thresholds: list[float]
     mtcnn_keep_all: bool
+    face_batch_size: int
     min_detection_confidence: float
     classification_strategy: Literal["top1", "top1_with_threshold"]
     min_classification_confidence: float
@@ -109,11 +111,13 @@ class AppConfig:
                 face_checkpoint=(base_dir / fr_data["face_checkpoint"]).resolve(),
                 clip_model_name=fr_data["clip_model_name"],
                 frame_sampling=frame_sampling_config,
+                person_num_frames=int(fr_data.get("person_num_frames", frame_sampling_config.num_frames)),
                 mtcnn_image_size=fr_data["mtcnn_image_size"],
                 mtcnn_margin=fr_data["mtcnn_margin"],
                 mtcnn_min_face_size=fr_data["mtcnn_min_face_size"],
                 mtcnn_thresholds=fr_data["mtcnn_thresholds"],
                 mtcnn_keep_all=fr_data["mtcnn_keep_all"],
+                face_batch_size=int(fr_data.get("face_batch_size", 64)),
                 min_detection_confidence=fr_data["min_detection_confidence"],
                 classification_strategy=fr_data.get("classification_strategy", "top1"),
                 min_classification_confidence=float(fr_data.get("min_classification_confidence", 0.5)),

@@ -45,11 +45,17 @@ class FaceSceneFRStrategy(FeatureExtractor):
         self.non_speaker_config = non_speaker_config
         self.scene_device = torch.device(config.device)
         if config.device == "mps":
-            # MPS 在 MTCNN 内部插值/池化上存在已知兼容性问题；人脸分支回退 CPU 保证稳定性。
-            self.face_device = torch.device("cpu")
-            print("[FaceSceneFRStrategy] MPS detected: face branch fallback to CPU for stability.")
+            # Apple Silicon 下保留 MTCNN 在 CPU 的稳定路径，同时让 FaceNet 分类分支走 MPS。
+            self.face_detect_device = torch.device("cpu")
+            self.face_device = torch.device("mps")
+            print("[FaceSceneFRStrategy] Apple Silicon mode: detector=cpu, face_embedder=mps, scene_encoder=mps.")
         else:
+            self.face_detect_device = torch.device(config.device)
             self.face_device = torch.device(config.device)
+            print(
+                f"[FaceSceneFRStrategy] Device mode: detector={self.face_detect_device}, "
+                f"face_embedder={self.face_device}, scene_encoder={self.scene_device}."
+            )
         self._output_dim = 1024
 
         print("[FaceSceneFRStrategy] Loading facenet-fr checkpoint...")
@@ -85,7 +91,7 @@ class FaceSceneFRStrategy(FeatureExtractor):
             min_face_size=config.mtcnn_min_face_size,
             thresholds=config.mtcnn_thresholds,
             keep_all=config.mtcnn_keep_all,
-            device=self.face_device,
+            device=self.face_detect_device,
         )
 
         print(f"[FaceSceneFRStrategy] Loading CLIP scene encoder: {config.clip_model_name}...")
@@ -93,6 +99,7 @@ class FaceSceneFRStrategy(FeatureExtractor):
         self.clip_model.eval()
 
         self._speaker_name_by_video: Dict[str, str] = {}
+        self._target_people_by_video: Dict[str, set[str]] = {}
         self._current_person_feature: Dict[str, torch.Tensor] = {}
         self._current_env_feature: torch.Tensor = torch.zeros(1, 512)
         self._current_utterance_tag: str = "unknown"
@@ -103,10 +110,13 @@ class FaceSceneFRStrategy(FeatureExtractor):
 
     def prepare(self, dialogue_records: List[DialogueRecord], video_base_dir: Path) -> None:
         self._speaker_name_by_video.clear()
+        self._target_people_by_video.clear()
         for dialogue in dialogue_records:
             for utt in dialogue.utterances:
                 vp = (video_base_dir / f"C_{utt.dialogue_id}" / f"C_{utt.dialogue_id}_U_{utt.utterance_idx}.mp4").resolve()
                 self._speaker_name_by_video[str(vp)] = utt.speaker.name
+                names = [utt.speaker.name] + [x.name for x in utt.listeners]
+                self._target_people_by_video[str(vp)] = {self._norm_name(x) for x in names if x.strip()}
         print(f"[FaceSceneFRStrategy] Prepared speaker index with {len(self._speaker_name_by_video)} entries.")
 
     def extract_speaker(self, video_path: Path) -> torch.Tensor:
@@ -129,13 +139,16 @@ class FaceSceneFRStrategy(FeatureExtractor):
 
     def _refresh_cache(self, video_path: Path) -> None:
         self._current_utterance_tag = video_path.stem
+        vp_key = str(video_path.resolve())
+        target_people = self._target_people_by_video.get(vp_key, set())
         frames = sample_frames(
             video_path,
             num_frames=self.config.frame_sampling.num_frames,
             strategy=self.config.frame_sampling.strategy,
         )
         self._current_env_feature = self._extract_env_feature(frames)
-        self._current_person_feature = self._extract_person_features(frames)
+        person_frames = self._select_person_frames(frames)
+        self._current_person_feature = self._extract_person_features(person_frames, target_people=target_people)
 
     def _extract_env_feature(self, frames: List) -> torch.Tensor:
         if not frames:
@@ -154,8 +167,12 @@ class FaceSceneFRStrategy(FeatureExtractor):
         agg = F.normalize(agg, p=2, dim=-1)
         return agg.cpu().detach()
 
-    def _extract_person_features(self, frames: List) -> Dict[str, torch.Tensor]:
+    def _extract_person_features(self, frames: List, target_people: set[str] | None = None) -> Dict[str, torch.Tensor]:
+        if not frames:
+            return {}
+
         bucket: Dict[str, List[torch.Tensor]] = {}
+        targets = set(target_people or set())
         with torch.no_grad():
             for frame_bgr in frames:
                 pil_img = Image.fromarray(frame_bgr[:, :, ::-1])
@@ -187,6 +204,10 @@ class FaceSceneFRStrategy(FeatureExtractor):
                     norm_label = self._norm_name(pred_label)
                     bucket.setdefault(norm_label, []).append(emb.cpu())
 
+                # 目标人物已经全部命中时，提前停止后续帧检测，降低 MTCNN 成本。
+                if targets and targets.issubset(bucket.keys()):
+                    break
+
         out: Dict[str, torch.Tensor] = {}
         for norm_label, vecs in bucket.items():
             if not vecs:
@@ -194,6 +215,15 @@ class FaceSceneFRStrategy(FeatureExtractor):
             mean_vec = torch.mean(torch.cat(vecs, dim=0), dim=0, keepdim=True)
             out[norm_label] = F.normalize(mean_vec, p=2, dim=-1).cpu().detach()
         return out
+
+    def _select_person_frames(self, frames: List) -> List:
+        if not frames:
+            return []
+        target_n = max(1, min(len(frames), int(self.config.person_num_frames)))
+        if target_n >= len(frames):
+            return frames
+        indices = np.unique(np.linspace(0, len(frames) - 1, num=target_n, dtype=int))
+        return [frames[int(i)] for i in indices]
 
     def _resolve_person_feature(self, person_name: str) -> tuple[torch.Tensor, str]:
         """
