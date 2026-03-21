@@ -1,3 +1,6 @@
 [submodule "face_name_id"]
 	path = face_name_id
 	url = https://github.com/JDLu2003/graduation_project_face_name_train.git
+[submodule "talknet_asd"]
+	path = talknet_asd
+	url = https://github.com/TaoRuijie/TalkNet-ASD.git
