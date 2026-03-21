@@ -3,7 +3,7 @@ SHELL := /bin/zsh
 ENV_NAME := security
 PY := conda run --no-capture-output -n $(ENV_NAME) python
 
-ROOT := /Users/jdlu/Project/graduation_project/feature_extra
+ROOT ?= $(CURDIR)
 CFG := $(ROOT)/config.yaml
 
 ROLE_SCRIPT := $(ROOT)/scripts/stat_role_frequencies.py
