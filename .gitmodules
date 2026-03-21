@@ -3,4 +3,7 @@
 	url = https://github.com/JDLu2003/graduation_project_face_name_train.git
 [submodule "talknet_asd"]
 	path = talknet_asd
-	url = https://github.com/TaoRuijie/TalkNet-ASD.git
+	url = https://github.com/JDLu2003/TalkNet-ASD.git
+[submodule "audio_opensmile"]
+	path = audio_opensmile
+	url = https://github.com/JDLu2003/audio_opensmile.git
