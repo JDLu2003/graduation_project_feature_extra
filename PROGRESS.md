@@ -30,3 +30,17 @@
 - **Git 提交**: `feat: 添加日志打印，提升 pipeline 可观测性` (`6bebf23`)
 - **验证**: 运行 `conda run -n security python main.py --config config.yaml` 命令，确认所有预期日志输出均已正确显示。
 - **后续计划**: 继续根据 CLAUDE.md 中的指导原则进行下一步的特征提取实现。
+
+## 2026-03-21
+
+- [x] 新增 `scripts/stat_role_frequencies.py`，复用 `src/parser.parse_dev_txt` 统计角色在对话中的出现频次。
+- [x] 输出角色的四项统计：对话中出现次数、语句中出现次数、作为说话人的次数、作为非说话人的次数。
+- [x] 增加可选 `CSV` / `JSON` 导出，并支持按语句次数、对话次数、说话次数、听众次数或名称排序。
+- [x] 运行脚本完成验证，确认可直接读取现有 `config.yaml` 和 `dev.txt`。
+- [x] 新增 `scripts/extract_faces_with_ffmpeg_mtcnn.py`，完成 `ffmpeg` 抽帧 -> `MTCNN` 画框 -> 视频重建的独立流程。
+- [x] 脚本输出统一落在 `logs/<video_stem>_mtcnn_<timestamp>/` 下，包含原始帧、框图、重建视频和检测清单。
+- [x] 完成脚本语法与 `--help` 验证；当前执行环境未安装 `facenet_pytorch`，脚本已改为延迟导入并给出明确报错。
+- [x] 按要求补齐音频保留逻辑，并将人脸置信度阈值默认设为 `0.95`，可通过参数覆盖。
+- [x] 在主仓库新增 `Makefile`，统一 `role-stats / face-box-video / talknet` 相关命令入口。
+- [x] 调整 `src/extractors/base.py` 与 `src/extractors/face_scene_fr/strategy.py` 的类型注解与文档说明。
+- [ ] 整理 `talknet_asd` 与 `audio_opensmile` 的子模块迁移配置（目标：在新机器可直接 `git submodule update --init --recursive`）。
