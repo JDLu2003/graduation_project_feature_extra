@@ -1,16 +1,27 @@
+"""
+FeatureExtractor 基类定义。
+
+该文件定义了特征提取器的这一抽象基类。所有具体的特征提取策略（如 VisualCLIPStrategy, FaceSceneFRStrategy）
+都必须继承此类并实现其抽象方法。
+
+主要接口：
+- prepare: 预处理步骤，通常用于构建索引或加载必要的上下文。
+- extract_speaker: 提取说话人的特征。
+- extract_non_speaker: 提取非说话人的特征。
+- output_dim: 返回提取特征的维度。
+"""
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List
+from typing import List, TYPE_CHECKING
 import torch
 
-# Assuming DialogueRecord is defined elsewhere, or will be defined.
-# For now, using Any to avoid import cycles.
-from typing import Any # Placeholder for DialogueRecord
+if TYPE_CHECKING:
+    from src.parser import DialogueRecord
 
 
 class FeatureExtractor(ABC):
     @abstractmethod
-    def prepare(self, dialogue_records: List[Any], video_base_dir: Path) -> None:
+    def prepare(self, dialogue_records: List['DialogueRecord'], video_base_dir: Path) -> None:
         """
         Prepares the extractor for processing, e.g., building context indexes.
         """

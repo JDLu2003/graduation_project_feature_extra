@@ -3,27 +3,27 @@
 将每个人物的最终特征统一组织为 1024 维，其中前 512 维是人物身份相关特征，后 512 维是
 该语句视频片段对应的环境/场景特征。
 
-整体策略采用“单次视频解析 + 多人物复用”的方式以保证效率：
-1) 每次进入 extract_speaker(video_path) 时，只对该视频做一次抽帧、检测、识别与场景编码。
-2) 抽到的人脸使用已训练好的 facenet-fr 模型做身份判别，同时保留其 512 维 embedding。
-3) 同一视频内同一身份若出现多次，采用平均聚合作为该身份的人物特征。
-4) 环境特征由 CLIP 对视频帧做全局编码后聚合得到 512 维，语句中所有人物共享该环境向量。
-5) 当前语句的中间结果会缓存在策略对象中，随后 extract_non_speaker(...) 直接复用，避免重复推理。
+核心逻辑与数据结构：
+1.  Feature Organization (1024 dim): [Person_ID_Feature (512) | Scene_Context_Feature (512)]
+    - Person Feature: 来源于 Facenet-FR 对当前视频中人脸的识别 embedding。
+    - Scene Feature: 来源于 CLIP 对当前视频帧的全局编码。
 
-对失败情况的处理遵循保守策略：
-- 未检测到目标身份的人脸，人物 512 维置零。
-- 视频无法采样帧或场景编码失败，环境 512 维置零。
-- 整体输出始终保证 [1, 1024]，以满足 pipeline 与 saver 的既有约束。
+2.  Context Memory (Dialogue History):
+    - 为了解决非说话人（Listener）往往不出现在当前画面的问题，本模块维护了一个对话级缓存 `_dialogue_history`。
+    - 结构: `Dict[dialogue_id, Dict[person_name, embedding]]`
+    - 机制: 每次检测到已知人物时更新其最新的特征向量；当需要提取某人特征但当前视频未检测到时，优先从该缓存回溯查找。
 
-该实现保持与 FeatureExtractor 接口一致，不修改 pipeline 的调用方式，
-可通过 config.yaml 切换 active_type 为 face_scene_fr 使用。
+3.  Fallbacks:
+    - LOCAL_FOUND: 当前视频检测到。
+    - CONTEXT_FOUND: 历史记录中找到。
+    - OTHER_MEAN / ZERO: 均未找到，回退到兜底策略。
 """
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Set, Tuple
 
 import clip
 import numpy as np
