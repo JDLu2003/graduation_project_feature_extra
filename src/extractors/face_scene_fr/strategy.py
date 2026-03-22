@@ -101,7 +101,7 @@ class FaceSceneFRStrategy(FeatureExtractor):
         self._speaker_name_by_video: Dict[str, str] = {}
         self._target_people_by_video: Dict[str, set[str]] = {}
         self._current_person_feature: Dict[str, torch.Tensor] = {}
-        self._current_env_feature: torch.Tensor = torch.zeros(1, 512)
+        self._current_env_feature: torch.Tensor = torch.zeros(1, 512, dtype=torch.float64)
         self._current_utterance_tag: str = "unknown"
 
     @property
@@ -152,7 +152,7 @@ class FaceSceneFRStrategy(FeatureExtractor):
 
     def _extract_env_feature(self, frames: List) -> torch.Tensor:
         if not frames:
-            return torch.zeros(1, 512)
+            return torch.zeros(1, 512, dtype=torch.float64)
         batch = []
         for frame_bgr in frames:
             frame_rgb = Image.fromarray(frame_bgr[:, :, ::-1])
@@ -165,7 +165,7 @@ class FaceSceneFRStrategy(FeatureExtractor):
         else:
             agg = feat.mean(dim=0, keepdim=True)
         agg = F.normalize(agg, p=2, dim=-1)
-        return agg.cpu().detach()
+        return agg.cpu().detach().to(torch.float64)
 
     def _extract_person_features(self, frames: List, target_people: set[str] | None = None) -> Dict[str, torch.Tensor]:
         if not frames:
@@ -252,10 +252,13 @@ class FaceSceneFRStrategy(FeatureExtractor):
 
     @staticmethod
     def _zero_person() -> torch.Tensor:
-        return torch.zeros(1, 512)
+        return torch.zeros(1, 512, dtype=torch.float64)
 
     def _compose(self, person_512: torch.Tensor, env_512: torch.Tensor) -> torch.Tensor:
-        feat = torch.cat([person_512.cpu(), env_512.cpu()], dim=1)
+        feat = torch.cat(
+            [person_512.cpu().to(torch.float64), env_512.cpu().to(torch.float64)],
+            dim=1,
+        )
         assert feat.shape == (1, self.output_dim), f"Expected (1, {self.output_dim}), got {feat.shape}"
         return feat
 

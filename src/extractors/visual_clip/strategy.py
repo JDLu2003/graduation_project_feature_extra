@@ -61,15 +61,15 @@ class VisualCLIPStrategy(FeatureExtractor):
                 # Average the features if multiple videos are found
                 averaged_features = torch.mean(torch.stack(all_features), dim=0, keepdim=False)
                 # Re-normalize the averaged features
-                return F.normalize(averaged_features, p=2, dim=-1)
+                return F.normalize(averaged_features, p=2, dim=-1).to(torch.float64)
             else:
                 # Fallback to zero vector if videos in index don't exist
                 print(f"[{self.__class__.__name__}] Warning: No valid video paths found for non-speaker '{person_name}' in dialogue {dialogue_id}, returning zero vector.")
-                return torch.zeros(1, self.output_dim, device=self.config.device)
+                return torch.zeros(1, self.output_dim, device=self.config.device, dtype=torch.float64)
         else:
             # If no context videos are available, return a zero vector as fallback
             print(f"[{self.__class__.__name__}] No context videos found for non-speaker '{person_name}' in dialogue {dialogue_id}, returning zero vector.")
-            return torch.zeros(1, self.output_dim, device=self.config.device)
+            return torch.zeros(1, self.output_dim, device=self.config.device, dtype=torch.float64)
 
 if __name__ == "__main__":
     import sys

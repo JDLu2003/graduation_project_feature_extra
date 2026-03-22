@@ -77,7 +77,7 @@ class CLIPEncoder:
 
         if not sampled_frames_np:
             print(f"[CLIPEncoder] Warning: No frames sampled from '{video_path}', returning zero vector.")
-            return torch.zeros(1, self.output_dim)
+            return torch.zeros(1, self.output_dim, dtype=torch.float64)
 
         # 2. Preprocess frames for CLIP and convert to tensor
         processed_frames_tensors: List[torch.Tensor] = []
@@ -123,4 +123,4 @@ class CLIPEncoder:
         )
 
         # Move to CPU before returning to prevent CUDA memory accumulation in the pipeline
-        return padded_features.cpu().detach()
+        return padded_features.cpu().detach().to(torch.float64)

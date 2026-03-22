@@ -1,69 +1,43 @@
 SHELL := /bin/zsh
 
-ENV_NAME := security
-PY := conda run --no-capture-output -n $(ENV_NAME) python
+# ===== Runtime config (can be overridden) =====
+CONDA_ENV ?= security
+PYTHON ?= python
+CONFIG ?= config.yaml
+MAX_DIALOGUES ?= 2
 
-ROOT ?= $(CURDIR)
-CFG := $(ROOT)/config.yaml
+RUN := conda run --no-capture-output -n $(CONDA_ENV) $(PYTHON) -u
 
-ROLE_SCRIPT := $(ROOT)/scripts/stat_role_frequencies.py
-FACE_BOX_SCRIPT := $(ROOT)/scripts/extract_faces_with_ffmpeg_mtcnn.py
-TALKNET_EVAL_SCRIPT := $(ROOT)/talknet_asd/scripts/evaluate_feature_extra_talknet_asd.py
-
-ROLE_SORT ?= utterances
-ROLE_OUT_CSV ?= $(ROOT)/logs/role_frequencies.csv
-ROLE_OUT_JSON ?= $(ROOT)/logs/role_frequencies.json
-
-VIDEO ?=
-FPS ?= 25
-DEVICE ?= cpu
-MIN_CONF ?= 0.95
-
-MAX_UTT ?= 2
-MAX_DIA ?= 0
-ASD_TH ?= 0.0
-TRACK_SAMPLE_FRAMES ?= 8
-DIALOGUE_IDS ?=
-CASE_TAGS ?=
-
-.PHONY: help role-stats role-stats-export face-box-video talknet-smoke talknet-case talknet-full talknet-full-keep
+.PHONY: help main-info smoke full verify-and-full one-click
 
 help:
-	@echo "Targets:"
-	@echo "  make role-stats                     # Print role frequency table from parser/config."
-	@echo "  make role-stats-export              # Export role stats CSV/JSON to logs."
-	@echo "  make face-box-video VIDEO=/abs.mp4  # ffmpeg frame extract + MTCNN bbox + rebuild video."
-	@echo "  make talknet-smoke                  # TalkNet ASD smoke eval (default first 2 utterances)."
-	@echo "  make talknet-case CASE_TAGS=C_18_U_1,C_18_U_2  # Evaluate selected utterances."
-	@echo "  make talknet-full                   # Full dataset TalkNet ASD eval (tmp cleaned)."
-	@echo "  make talknet-full-keep              # Full eval and keep tmp artifacts."
+	@echo "Usage:"
+	@echo "  make main-info        # Show what main.py does"
+	@echo "  make smoke            # Validation run (smoke test)"
+	@echo "  make full             # Full feature extraction"
+	@echo "  make verify-and-full  # smoke -> full"
+	@echo "  make one-click        # Alias of verify-and-full"
 	@echo ""
-	@echo "Common vars:"
-	@echo "  CFG=$(CFG)"
-	@echo "  ROLE_SORT=$(ROLE_SORT) ROLE_OUT_CSV=$(ROLE_OUT_CSV) ROLE_OUT_JSON=$(ROLE_OUT_JSON)"
-	@echo "  VIDEO=<abs_path> FPS=$(FPS) DEVICE=$(DEVICE) MIN_CONF=$(MIN_CONF)"
-	@echo "  MAX_UTT=$(MAX_UTT) MAX_DIA=$(MAX_DIA) ASD_TH=$(ASD_TH) TRACK_SAMPLE_FRAMES=$(TRACK_SAMPLE_FRAMES)"
-	@echo "  DIALOGUE_IDS=$(DIALOGUE_IDS) CASE_TAGS=$(CASE_TAGS)"
+	@echo "Override examples:"
+	@echo "  make smoke MAX_DIALOGUES=3"
+	@echo "  make full CONFIG=config.yaml CONDA_ENV=security"
 
-role-stats:
-	@$(PY) $(ROLE_SCRIPT) --config $(CFG) --sort $(ROLE_SORT)
+main-info:
+	@echo "main.py core flow:"
+	@echo "1) Load config from --config (default: config.yaml)"
+	@echo "2) Parse dev.txt into dialogue records"
+	@echo "3) If --smoke: only process first --max-dialogues dialogues"
+	@echo "4) Init extractor by extractor.active_type (visual_clip / face_scene_fr)"
+	@echo "5) Run pipeline: speaker + listeners feature extraction, then save .pt"
 
-role-stats-export:
-	@$(PY) $(ROLE_SCRIPT) --config $(CFG) --sort $(ROLE_SORT) --out-csv $(ROLE_OUT_CSV) --out-json $(ROLE_OUT_JSON)
+smoke:
+	@echo "[smoke] Running validation extraction with MAX_DIALOGUES=$(MAX_DIALOGUES), CONFIG=$(CONFIG)"
+	$(RUN) main.py --config $(CONFIG) --smoke --max-dialogues $(MAX_DIALOGUES)
 
-face-box-video:
-	@test -n "$(VIDEO)" || (echo "VIDEO is required, e.g. make face-box-video VIDEO=/abs/path/to/video.mp4" && exit 1)
-	@$(PY) $(FACE_BOX_SCRIPT) "$(VIDEO)" --fps $(FPS) --device $(DEVICE) --min-confidence $(MIN_CONF)
+full:
+	@echo "[full] Running full extraction with CONFIG=$(CONFIG)"
+	$(RUN) main.py --config $(CONFIG)
 
-talknet-smoke:
-	@$(PY) $(TALKNET_EVAL_SCRIPT) --config $(CFG) --max-utterances $(MAX_UTT) --max-dialogues $(MAX_DIA) --dialogue-ids $(DIALOGUE_IDS) --asd-threshold $(ASD_TH) --track-sample-frames $(TRACK_SAMPLE_FRAMES) --keep-tmp
+verify-and-full: smoke full
 
-talknet-case:
-	@test -n "$(CASE_TAGS)" || (echo "CASE_TAGS is required, e.g. make talknet-case CASE_TAGS=C_18_U_1,C_18_U_2" && exit 1)
-	@$(PY) $(TALKNET_EVAL_SCRIPT) --config $(CFG) --dialogue-ids $(DIALOGUE_IDS) --case-tags $(CASE_TAGS) --asd-threshold $(ASD_TH) --track-sample-frames $(TRACK_SAMPLE_FRAMES) --keep-tmp
-
-talknet-full:
-	@$(PY) $(TALKNET_EVAL_SCRIPT) --config $(CFG) --dialogue-ids $(DIALOGUE_IDS) --asd-threshold $(ASD_TH) --track-sample-frames $(TRACK_SAMPLE_FRAMES)
-
-talknet-full-keep:
-	@$(PY) $(TALKNET_EVAL_SCRIPT) --config $(CFG) --dialogue-ids $(DIALOGUE_IDS) --asd-threshold $(ASD_TH) --track-sample-frames $(TRACK_SAMPLE_FRAMES) --keep-tmp
+one-click: verify-and-full
