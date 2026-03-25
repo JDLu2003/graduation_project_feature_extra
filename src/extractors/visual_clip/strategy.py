@@ -19,6 +19,7 @@ class VisualCLIPStrategy(FeatureExtractor):
         self.config = config
         self.non_speaker_config = non_speaker_config
         self.clip_encoder = CLIPEncoder(config)
+        self.runtime_device = self.clip_encoder.runtime_device
         self._output_dim = self.clip_encoder.output_dim
         self.context_index: Dict[Tuple[int, str], List[Path]] = {} # Will be built in prepare()
 
@@ -65,11 +66,11 @@ class VisualCLIPStrategy(FeatureExtractor):
             else:
                 # Fallback to zero vector if videos in index don't exist
                 print(f"[{self.__class__.__name__}] Warning: No valid video paths found for non-speaker '{person_name}' in dialogue {dialogue_id}, returning zero vector.")
-                return torch.zeros(1, self.output_dim, device=self.config.device, dtype=torch.float64)
+                return torch.zeros(1, self.output_dim, dtype=torch.float64)
         else:
             # If no context videos are available, return a zero vector as fallback
             print(f"[{self.__class__.__name__}] No context videos found for non-speaker '{person_name}' in dialogue {dialogue_id}, returning zero vector.")
-            return torch.zeros(1, self.output_dim, device=self.config.device, dtype=torch.float64)
+            return torch.zeros(1, self.output_dim, dtype=torch.float64)
 
 if __name__ == "__main__":
     import sys

@@ -49,9 +49,16 @@ brew install ffmpeg
 2. `paths.video_dir`
 3. `paths.feat_out`
 4. `face_scene_fr_config.face_checkpoint`
-5. `talknet_asd/pretrain_TalkSet.model`
+5. `extractor.active_type` 需要设置为 `face_scene_fr`
 
-提示：`config.yaml` 当前使用的是相对路径（如 `../data_set/...`），迁移后请按你的目录结构调整。
+然后在 `face_name_id/configs/facenet_fr.yaml` 中配置训练人物识别模型所需路径：
+
+1. `paths.image_root`
+2. `paths.rejected_root`
+3. `paths.split_dir`
+4. `paths.output_dir`
+
+提示：这两个 YAML 当前都使用相对路径，迁移后请按你的目录结构调整。主仓库默认 `device: auto`，会优先使用 CUDA。
 
 ## 4. 最小可用验证
 
@@ -61,16 +68,28 @@ brew install ffmpeg
 make help
 ```
 
+查看必须修改的配置字段：
+
+```bash
+make config-help
+```
+
+先训练 `face_scene_fr` 依赖的人脸识别模型：
+
+```bash
+make train-face-model
+```
+
 执行一个轻量验证（角色统计）：
 
 ```bash
 make role-stats
 ```
 
-执行 TalkNet 小样本验证：
+执行 `face_scene_fr` 小样本验证：
 
 ```bash
-make talknet-smoke
+make smoke
 ```
 
 ## 5. 子模块说明
@@ -96,4 +115,4 @@ git submodule update --init --recursive
 检查 `config.yaml` 的路径是否与本机目录一致。
 
 3. CUDA/MPS 不可用  
-本项目默认可在 CPU 下运行，必要时在配置中将 device 设为 `cpu`。
+本项目默认 `device: auto`，会自动回退；必要时可在 `config.yaml` 中手动设为 `cpu`。

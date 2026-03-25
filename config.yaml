@@ -18,8 +18,8 @@ extractor:
 visual_clip_config:
   # model_name: 使用的 CLIP 模型名称，例如 "ViT-B/32", "RN50"
   model_name: "ViT-B/32"
-  # device: 计算设备 ("cpu", "cuda", "mps")
-  device: "mps"           # 或 "cuda" / "mps"
+  # device: 计算设备 ("auto", "cpu", "cuda", "mps")
+  device: "auto"          # 新机器推荐 auto：优先 cuda，其次 mps，最后 cpu
   # clip_output_dim: CLIP 模型原始输出特征维度 (例如 ViT-B/32 为 512)
   clip_output_dim: 512
   # target_dim: 最终特征的目标维度，所有特征将被投影到此维度 (例如 1024)
@@ -35,8 +35,8 @@ visual_clip_config:
 
 # face_scene_fr_config: 人物512 + 环境512 的特征提取器配置
 face_scene_fr_config:
-  # 计算设备 ("cpu", "cuda", "mps")
-  device: "mps"
+  # 计算设备 ("auto", "cpu", "cuda", "mps")
+  device: "auto"
   # 训练好的 facenet-fr 模型 checkpoint 路径（用于人脸识别 + 人物 embedding 提取）
   face_checkpoint: "face_name_id/artifacts/facenet_fr/outputs/checkpoints/best.pt"
   # 环境特征使用 CLIP 的全局场景编码

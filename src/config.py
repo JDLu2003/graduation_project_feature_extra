@@ -4,6 +4,8 @@ from typing import Literal
 
 import yaml
 
+from src.device import DeviceName
+
 @dataclass(frozen=True)
 class PathsConfig:
     dev_txt: Path
@@ -19,7 +21,7 @@ class FrameSamplingConfig:
 @dataclass(frozen=True)
 class VisualClipConfig:
     model_name: str
-    device: Literal["cpu", "cuda", "mps"]
+    device: DeviceName
     clip_output_dim: int
     target_dim: int
     frame_sampling: FrameSamplingConfig
@@ -30,7 +32,7 @@ class FaceSceneFRConfig:
     """
     配置“人物512 + 环境512”策略。
     """
-    device: Literal["cpu", "cuda", "mps"]
+    device: DeviceName
     face_checkpoint: Path
     clip_model_name: str
     frame_sampling: FrameSamplingConfig

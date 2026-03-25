@@ -34,6 +34,7 @@ from facenet_pytorch import InceptionResnetV1, MTCNN
 from PIL import Image
 
 from src.config import FaceSceneFRConfig, NonSpeakerConfig
+from src.device import device_name, resolve_device
 from src.extractors.base import FeatureExtractor
 from src.parser import DialogueRecord
 from src.video_utils import sample_frames
@@ -43,15 +44,15 @@ class FaceSceneFRStrategy(FeatureExtractor):
     def __init__(self, config: FaceSceneFRConfig, non_speaker_config: NonSpeakerConfig) -> None:
         self.config = config
         self.non_speaker_config = non_speaker_config
-        self.scene_device = torch.device(config.device)
-        if config.device == "mps":
+        self.scene_device = resolve_device(config.device)
+        if self.scene_device.type == "mps":
             # Apple Silicon 下保留 MTCNN 在 CPU 的稳定路径，同时让 FaceNet 分类分支走 MPS。
             self.face_detect_device = torch.device("cpu")
             self.face_device = torch.device("mps")
             print("[FaceSceneFRStrategy] Apple Silicon mode: detector=cpu, face_embedder=mps, scene_encoder=mps.")
         else:
-            self.face_detect_device = torch.device(config.device)
-            self.face_device = torch.device(config.device)
+            self.face_detect_device = self.scene_device
+            self.face_device = self.scene_device
             print(
                 f"[FaceSceneFRStrategy] Device mode: detector={self.face_detect_device}, "
                 f"face_embedder={self.face_device}, scene_encoder={self.scene_device}."
@@ -95,7 +96,10 @@ class FaceSceneFRStrategy(FeatureExtractor):
         )
 
         print(f"[FaceSceneFRStrategy] Loading CLIP scene encoder: {config.clip_model_name}...")
-        self.clip_model, self.clip_preprocess = clip.load(config.clip_model_name, device=self.scene_device)
+        self.clip_model, self.clip_preprocess = clip.load(
+            config.clip_model_name,
+            device=device_name(self.scene_device),
+        )
         self.clip_model.eval()
 
         self._speaker_name_by_video: Dict[str, str] = {}

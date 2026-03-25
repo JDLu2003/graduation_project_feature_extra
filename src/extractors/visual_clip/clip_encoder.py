@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List
 
 from src.config import VisualClipConfig
+from src.device import device_name, resolve_device
 from src.video_utils import sample_frames
 
 
@@ -19,10 +20,11 @@ class CLIPEncoder:
     def __init__(self, config: VisualClipConfig) -> None:
         self.config = config
         self._output_dim = config.target_dim
+        self.runtime_device = resolve_device(config.device)
 
         # Load CLIP model
         self.model, self.preprocess = clip.load(
-            self.config.model_name, device=self.config.device)
+            self.config.model_name, device=device_name(self.runtime_device))
         self.model.eval()  # Set model to evaluation mode
 
         # Note: LinearProjection is intentionally NOT used here.
@@ -40,7 +42,7 @@ class CLIPEncoder:
         self._pad_size = pad_size
 
         print(
-            f"[CLIPEncoder] Loaded model '{self.config.model_name}' on {self.config.device}. "
+            f"[CLIPEncoder] Loaded model '{self.config.model_name}' on {self.runtime_device}. "
             f"CLIP output dim: {self.config.clip_output_dim}, "
             f"target dim: {self.config.target_dim} (zero-padded by {self._pad_size})."
         )
@@ -88,7 +90,7 @@ class CLIPEncoder:
 
         # Stack into a single batch tensor
         frame_batch = torch.stack(
-            processed_frames_tensors).to(self.config.device)
+            processed_frames_tensors).to(self.runtime_device)
 
         # 3. Extract features using CLIP
         with torch.no_grad():
