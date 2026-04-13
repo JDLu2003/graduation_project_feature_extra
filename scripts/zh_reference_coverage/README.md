@@ -99,6 +99,8 @@
    - cluster 内部一致性统计
    - 判定时使用的关键超参数
 4. `merged_identity_gallery/` 会把同名 cluster 进一步合并，按最终人物名聚合，便于看“同一个 reference 人物是否被拆成多个 cluster”。
+5. `annotated_roles.csv` 会把文本标注中出现的所有人物统计出来。
+6. `merged_identities.csv` 会列出最终识别出的人物，以及每个人物对应的识别图片数量。
 
 ## 使用方式
 
@@ -143,6 +145,7 @@ make pipeline \
   DETECT_BATCH_SIZE=8 \
   EMBED_BATCH_SIZE=256 \
   REFERENCE_EMBED_BATCH_SIZE=256 \
+  MIN_DETECT_CONFIDENCE=0.95 \
   FACE_VERIFY_THRESHOLD=0.75 \
   MAX_FACES_PER_FRAME=8 \
   USE_FP16=1
@@ -151,9 +154,10 @@ make pipeline \
 调参建议：
 
 1. 优先增大 `EMBED_BATCH_SIZE`，它最影响 GPU 吞吐。
-2. 如果检测阶段显存吃紧或波动大，先减小 `DETECT_BATCH_SIZE`。
-3. 如果同一角色被拆得太碎，降低 `CLUSTER_THRESHOLD`。
-4. 如果误识别多，提高 `REFERENCE_MATCH_THRESHOLD` 或 `REFERENCE_MATCH_MARGIN`。
+2. 如果误检较多，可以提高 `MIN_DETECT_CONFIDENCE`，让 MTCNN 更严格地保留人脸。
+3. 如果检测阶段显存吃紧或波动大，先减小 `DETECT_BATCH_SIZE`。
+4. 如果同一角色被拆得太碎，降低 `CLUSTER_THRESHOLD`。
+5. 如果误识别多，提高 `REFERENCE_MATCH_THRESHOLD` 或 `REFERENCE_MATCH_MARGIN`。
 
 ## FaceNet 一致性相关超参数
 
@@ -206,6 +210,12 @@ FACE_VERIFY_THRESHOLD=0.75
 
 7. `all_participants_hit_ratio`
    一句中所有真实人物都被识别出来的比例。
+
+8. `avg_participants_per_utterance`
+   平均每句话有多少个真实参与人物。
+
+9. `avg_matched_participants_per_utterance`
+   平均每句话成功识别出多少个真实参与人物。
 
 ## 结果解读建议
 

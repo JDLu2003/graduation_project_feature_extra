@@ -28,6 +28,7 @@ def main() -> None:
     parser.add_argument("--run-prefix", type=str, default="pipeline_all_splits", help="各 split 输出目录名前缀。")
     parser.add_argument("--device", type=str, default="cuda", help="cpu / cuda / cuda:0。")
     parser.add_argument("--num-frames", type=int, default=6)
+    parser.add_argument("--min-detect-confidence", type=float, default=0.95)
     parser.add_argument("--detect-batch-size", type=int, default=8)
     parser.add_argument("--embed-batch-size", type=int, default=256)
     parser.add_argument("--reference-embed-batch-size", type=int, default=256)
@@ -55,6 +56,7 @@ def main() -> None:
             "--run-name", run_name,
             "--device", args.device,
             "--num-frames", str(args.num_frames),
+            "--min-detect-confidence", str(args.min_detect_confidence),
             "--detect-batch-size", str(args.detect_batch_size),
             "--embed-batch-size", str(args.embed_batch_size),
             "--reference-embed-batch-size", str(args.reference_embed_batch_size),

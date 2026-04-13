@@ -96,6 +96,15 @@ class MergedIdentity:
     utterance_count: int
 
 
+@dataclass(frozen=True)
+class AnnotatedRoleStat:
+    name: str
+    dialogue_count: int
+    utterance_count: int
+    speaker_count: int
+    listener_count: int
+
+
 def normalize_name(name: str) -> str:
     return name.strip()
 
@@ -366,6 +375,41 @@ def infer_split_name(txt_path: Path) -> str:
     return txt_path.stem
 
 
+def compute_annotated_role_stats(utterances: list[UtteranceRecord]) -> list[AnnotatedRoleStat]:
+    dialogue_sets: dict[str, set[int]] = defaultdict(set)
+    utterance_counter: Counter[str] = Counter()
+    speaker_counter: Counter[str] = Counter()
+    listener_counter: Counter[str] = Counter()
+
+    for utt in utterances:
+        speaker_name = normalize_name(utt.speaker.name)
+        if speaker_name:
+            dialogue_sets[speaker_name].add(utt.dialogue_id)
+            utterance_counter[speaker_name] += 1
+            speaker_counter[speaker_name] += 1
+        for listener in utt.listeners:
+            listener_name = normalize_name(listener.name)
+            if not listener_name:
+                continue
+            dialogue_sets[listener_name].add(utt.dialogue_id)
+            utterance_counter[listener_name] += 1
+            listener_counter[listener_name] += 1
+
+    rows: list[AnnotatedRoleStat] = []
+    for name in sorted(set(dialogue_sets) | set(utterance_counter) | set(speaker_counter) | set(listener_counter)):
+        rows.append(
+            AnnotatedRoleStat(
+                name=name,
+                dialogue_count=len(dialogue_sets.get(name, set())),
+                utterance_count=utterance_counter[name],
+                speaker_count=speaker_counter[name],
+                listener_count=listener_counter[name],
+            )
+        )
+    rows.sort(key=lambda x: (-x.utterance_count, -x.dialogue_count, x.name))
+    return rows
+
+
 def evaluate_predictions(
     utterances: list[UtteranceRecord],
     face_records: list[FaceRecord],
@@ -428,6 +472,8 @@ def evaluate_predictions(
     utterances_with_listener = 0
     listener_recall_sum_all = 0.0
     listener_recall_sum_non_empty = 0.0
+    total_participants_all = 0
+    matched_participants_all = 0
 
     role_counter = Counter(role_names)
     speaker_role_set = {normalize_name(utt.speaker.name) for utt in utterances if normalize_name(utt.speaker.name)}
@@ -444,6 +490,7 @@ def evaluate_predictions(
         predicted_set = set(predicted)
         participants = participant_names(utt)
         participant_set = {name for name in participants if name}
+        total_participants_all += len(participant_set)
         speaker_name = normalize_name(utt.speaker.name)
         listeners = [normalize_name(x.name) for x in utt.listeners if normalize_name(x.name)]
         total_listener_slots += len(listeners)
@@ -464,6 +511,7 @@ def evaluate_predictions(
         if participant_hit:
             participant_match_count += 1
             matched_roles.update(predicted_set.intersection(participant_set))
+        matched_participants_all += len(predicted_set.intersection(participant_set))
         if exact_participant_hit:
             exact_participant_match_count += 1
         if listeners:
@@ -501,6 +549,8 @@ def evaluate_predictions(
         "participant_hit_ratio": participant_match_count / len(utterances) if utterances else 0.0,
         "all_participants_hit_utterances": exact_participant_match_count,
         "all_participants_hit_ratio": exact_participant_match_count / len(utterances) if utterances else 0.0,
+        "avg_participants_per_utterance": total_participants_all / len(utterances) if utterances else 0.0,
+        "avg_matched_participants_per_utterance": matched_participants_all / len(utterances) if utterances else 0.0,
         "matched_listener_slots": matched_listener_slots,
         "total_listener_slots": total_listener_slots,
         "listener_slot_hit_ratio": matched_listener_slots / total_listener_slots if total_listener_slots else 0.0,
@@ -536,6 +586,7 @@ def write_markdown_report(
     pipeline_summary: dict[str, object],
     reference_bank: list[ReferenceIdentityEmbedding],
     merged_identities: list[MergedIdentity],
+    annotated_role_stats: list[AnnotatedRoleStat],
 ) -> None:
     ensure_dir(path.parent)
     lines = [
@@ -569,6 +620,8 @@ def write_markdown_report(
         f"- speaker 命中率：`{pipeline_summary['speaker_hit_ratio']:.2%}`",
         f"- participant 命中率：`{pipeline_summary['participant_hit_ratio']:.2%}`",
         f"- 句子内所有人物全部命中率：`{pipeline_summary['all_participants_hit_ratio']:.2%}`",
+        f"- 平均每句参与人物数：`{pipeline_summary['avg_participants_per_utterance']:.2f}`",
+        f"- 平均每句命中的参与人物数：`{pipeline_summary['avg_matched_participants_per_utterance']:.2f}`",
         f"- listener 槽位命中率：`{pipeline_summary['listener_slot_hit_ratio']:.2%}`",
         f"- 平均每句非说话人识别率（只统计有 listener 的句子）：`{pipeline_summary['avg_listener_recall_per_utterance_non_empty']:.2%}`",
         f"- 角色命中覆盖率：`{pipeline_summary['matched_role_ratio']:.2%}`",
@@ -576,10 +629,25 @@ def write_markdown_report(
         f"- 非说话人角色覆盖率：`{pipeline_summary['matched_listener_role_ratio']:.2%}`",
         f"- cluster 总数：`{pipeline_summary['cluster_count']}`，其中已知 cluster：`{pipeline_summary['known_cluster_count']}`",
         f"- 合并后的已命名 identity 数：`{len(merged_identities)}`",
+        f"- 文本标注中的人物总数：`{len(annotated_role_stats)}`",
         f"- reference 身份数：`{len(reference_bank)}`",
+        "",
+        "## 指标说明",
+        "",
+        "- `utterances_with_face_ratio`：有至少一张人脸被检测出来的句子比例。",
+        "- `speaker_hit_ratio`：句子中的说话人被成功识别出来的比例。",
+        "- `participant_hit_ratio`：一句话里至少有一个真实参与人物被识别出来的比例。",
+        "- `all_participants_hit_ratio`：一句话中的所有真实参与人物都被识别出来的比例。",
+        "- `avg_participants_per_utterance`：平均每句话有多少个真实参与人物（说话人 + 非说话人去重后）。",
+        "- `avg_matched_participants_per_utterance`：平均每句话成功识别出多少个真实参与人物。",
+        "- `matched_speaker_role_ratio`：文本标注中所有说话人角色里，被至少命中过一次的比例。",
+        "- `matched_listener_role_ratio`：文本标注中所有非说话人角色里，被至少命中过一次的比例。",
+        "- `avg_listener_recall_per_utterance_non_empty`：只在存在非说话人的句子上，平均每句话识别出了多少比例的非说话人。",
+        "- `covered_reference_identity_ratio`：reference 库中的人物里，最终至少被命中过一次的比例。",
         "",
         "## 建议调参方向",
         "",
+        "0. 如果误检太多，可以先提高 `min_detect_confidence`，让 MTCNN 更严格地保留人脸。",
         "1. 如果 GPU 余量足够，可以优先增大 `embed_batch_size`，它对吞吐提升最明显。",
         "2. 如果检测阶段变慢或显存不足，先减小 `detect_batch_size`，检测比 embedding 更容易抖动。",
         "3. 如果同一角色被拆成多个 cluster，适当降低 `cluster_threshold`。",
@@ -822,6 +890,7 @@ def main() -> None:
     device = torch.device(args.device)
     dialogues = parse_dev_txt(txt_path)
     utterances = iter_utterances(dialogues, max_dialogues=args.max_dialogues)
+    annotated_role_stats = compute_annotated_role_stats(utterances)
     role_names = [normalize_name(utt.speaker.name) for utt in utterances]
     role_names.extend(normalize_name(listener.name) for utt in utterances for listener in utt.listeners)
 
@@ -963,7 +1032,21 @@ def main() -> None:
         len({row.name for row in merged_identities}) / len(reference_bank)
         if reference_bank else 0.0
     )
+    summary["annotated_role_count"] = len(annotated_role_stats)
     write_json(output_dir / "pipeline_summary.json", summary)
+    write_csv(
+        output_dir / "annotated_roles.csv",
+        [
+            {
+                "name": row.name,
+                "dialogue_count": row.dialogue_count,
+                "utterance_count": row.utterance_count,
+                "speaker_count": row.speaker_count,
+                "listener_count": row.listener_count,
+            }
+            for row in annotated_role_stats
+        ],
+    )
     write_csv(output_dir / "cluster_matches.csv", cluster_rows)
     write_csv(output_dir / "utterance_predictions.csv", utterance_rows)
     write_csv(
@@ -975,6 +1058,7 @@ def main() -> None:
                 "merged_cluster_ids": "|".join(str(x) for x in row.cluster_ids),
                 "face_count": row.face_count,
                 "utterance_count": row.utterance_count,
+                "recognized_image_count": row.face_count,
             }
             for row in merged_identities
         ],
@@ -1000,6 +1084,7 @@ def main() -> None:
         pipeline_summary=summary,
         reference_bank=reference_bank,
         merged_identities=merged_identities,
+        annotated_role_stats=annotated_role_stats,
     )
     write_json(
         output_dir / "run_config.json",

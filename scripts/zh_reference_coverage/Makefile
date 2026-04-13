@@ -26,6 +26,7 @@ REFERENCE_MATCH_THRESHOLD ?= 0.80
 REFERENCE_MATCH_MARGIN ?= 0.03
 FACE_VERIFY_THRESHOLD ?= 0.75
 MAX_FACES_PER_FRAME ?= 8
+MIN_DETECT_CONFIDENCE ?= 0.95
 USE_FP16 ?= 1
 SMOKE_MAX_DIALOGUES ?= 8
 
@@ -49,6 +50,7 @@ help:
 	@echo "  REFERENCE_EMBED_BATCH_SIZE=256"
 	@echo "  USE_FP16=1"
 	@echo "  FACE_VERIFY_THRESHOLD=0.75"
+	@echo "  MIN_DETECT_CONFIDENCE=0.95"
 
 run:
 	$(RUN) $(SCRIPT) \
@@ -68,6 +70,7 @@ pipeline:
 		--run-name $(PIPELINE_RUN_NAME) \
 		--device $(DEVICE) \
 		--num-frames $(NUM_FRAMES) \
+		--min-detect-confidence $(MIN_DETECT_CONFIDENCE) \
 		--detect-batch-size $(DETECT_BATCH_SIZE) \
 		--embed-batch-size $(EMBED_BATCH_SIZE) \
 		--reference-embed-batch-size $(REFERENCE_EMBED_BATCH_SIZE) \
@@ -88,6 +91,7 @@ pipeline-smoke:
 		--run-name $(PIPELINE_RUN_NAME)_smoke \
 		--device $(DEVICE) \
 		--num-frames $(NUM_FRAMES) \
+		--min-detect-confidence $(MIN_DETECT_CONFIDENCE) \
 		--detect-batch-size $(DETECT_BATCH_SIZE) \
 		--embed-batch-size $(EMBED_BATCH_SIZE) \
 		--reference-embed-batch-size $(REFERENCE_EMBED_BATCH_SIZE) \
@@ -108,6 +112,7 @@ pipeline-all-splits:
 		--run-prefix $(PIPELINE_RUN_NAME) \
 		--device $(DEVICE) \
 		--num-frames $(NUM_FRAMES) \
+		--min-detect-confidence $(MIN_DETECT_CONFIDENCE) \
 		--detect-batch-size $(DETECT_BATCH_SIZE) \
 		--embed-batch-size $(EMBED_BATCH_SIZE) \
 		--reference-embed-batch-size $(REFERENCE_EMBED_BATCH_SIZE) \
