@@ -1,0 +1,58 @@
+project:
+  seed: 42
+
+paths:
+  host_project_root: "../.."
+  dev_txt: "/data16T_1/sunshengzhe/lujiading/data_zh/train/train.txt"
+  video_dir: "/data16T_1/sunshengzhe/lujiading/data_zh/train/Video_train"
+
+  work_dir: "../../face_name_id/artifacts_zh/train_speaker_model"
+  image_root: "../../face_name_id/artifacts_zh/train_speaker_model/dataset/images"
+  manifest_dir: "../../face_name_id/artifacts_zh/train_speaker_model/dataset/manifests"
+  meta_dir: "../../face_name_id/artifacts_zh/train_speaker_model/dataset/meta"
+  review_dir: "../../face_name_id/artifacts_zh/train_speaker_model/dataset/review"
+
+labeling:
+  strategy: "topk_plus_other"
+  topk_speakers: 12
+  whitelist_names: []
+  other_label: "other"
+
+sampling:
+  frames_per_utterance: 6
+  strategy: "uniform"
+  resize_short_side: 720
+
+face_detection:
+  device: "cpu"
+  image_size: 160
+  margin: 12
+  min_face_size: 24
+  thresholds: [0.6, 0.7, 0.7]
+  keep_all: true
+
+build:
+  keep_single_face_only: true
+  min_face_confidence: 0.95
+  jpeg_quality: 95
+  skip_existing: true
+  filename_pattern: "{label}__d{dialogue_id:04d}_u{utterance_idx:04d}_f{frame_idx:04d}.jpg"
+  write_manifest: true
+  write_meta: true
+  verbose_log: true
+
+augmentation:
+  enable_multi_face_weak_label: false
+  min_anchor_samples_per_label: 20
+  min_similarity: 0.72
+
+cleaning:
+  enable: false
+  method: "kmeans2"
+  dbscan_eps: 0.65
+  dbscan_min_samples: 5
+  min_keep_per_label: 20
+
+web_review:
+  host: "127.0.0.1"
+  port: 8765

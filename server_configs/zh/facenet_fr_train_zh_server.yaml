@@ -1,0 +1,29 @@
+model:
+  pretrained: "vggface2"
+  topk: 3
+
+split:
+  train_ratio: 0.7
+  val_ratio: 0.2
+  test_ratio: 0.1
+  seed: 42
+
+data:
+  image_size: 160
+  batch_size: 32
+  num_workers: 4
+
+train:
+  epochs: 20
+  lr: 0.0001
+  weight_decay: 0.0001
+  dropout: 0.2
+  freeze_backbone: false
+  label_smoothing: 0.05
+  early_stop_patience: 5
+
+paths:
+  image_root: "../../face_name_id/artifacts_zh/train_speaker_model/dataset/images"
+  rejected_root: "../../face_name_id/artifacts_zh/train_speaker_model/dataset/review/rejected_images"
+  split_dir: "../../face_name_id/artifacts_zh/train_speaker_model/facenet_fr/splits"
+  output_dir: "../../face_name_id/artifacts_zh/train_speaker_model/facenet_fr/outputs"

@@ -127,6 +127,38 @@ python scripts/run_zh_feature_workflow.py \
 2. `target-split` 是要导出 `video_embedding_*.npy` 和 `video_id_mapping_*.npy` 的划分，例如 `dev`
 3. merge 阶段现在会按 `split_name` 自动输出，例如 `video_embedding_dev.npy`
 
+如果你的服务器路径已经是下面这套：
+
+`/data16T_1/sunshengzhe/lujiading/data_zh/train`
+
+`/data16T_1/sunshengzhe/lujiading/data_zh/dev`
+
+那现在也可以直接使用仓库里已经填好的配置与脚本：
+
+```bash
+bash scripts/run_zh_server_dev_pipeline.sh all
+```
+
+或分步执行：
+
+```bash
+bash scripts/run_zh_server_dev_pipeline.sh role-stats
+bash scripts/run_zh_server_dev_pipeline.sh build-face-dataset
+bash scripts/run_zh_server_dev_pipeline.sh train-face-model
+bash scripts/run_zh_server_dev_pipeline.sh extract-smoke
+bash scripts/run_zh_server_dev_pipeline.sh extract-full
+bash scripts/run_zh_server_dev_pipeline.sh merge
+bash scripts/run_zh_server_dev_pipeline.sh verify
+```
+
+现成服务器配置位于：
+
+`server_configs/zh/dataset_build_train_zh_server.yaml`
+
+`server_configs/zh/facenet_fr_train_zh_server.yaml`
+
+`server_configs/zh/main_dev_zh_server.yaml`
+
 ## 6. 子模块说明
 
 本仓库依赖以下子模块：
