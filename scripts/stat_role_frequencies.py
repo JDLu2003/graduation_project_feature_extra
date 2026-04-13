@@ -8,7 +8,7 @@ import sys
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Optional
 
 project_root = Path(__file__).resolve().parent.parent
 if str(project_root) not in sys.path:
@@ -31,7 +31,7 @@ class RoleFrequency:
         return self.speaker_count + self.listener_count
 
 
-def load_dialogues(config_path: Path | None = None, txt_path: Path | None = None) -> list[DialogueRecord]:
+def load_dialogues(config_path: Optional[Path] = None, txt_path: Optional[Path] = None) -> list[DialogueRecord]:
     if txt_path is not None:
         return parse_dev_txt(txt_path)
     if config_path is None:

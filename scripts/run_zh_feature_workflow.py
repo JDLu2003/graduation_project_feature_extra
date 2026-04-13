@@ -7,7 +7,7 @@ import subprocess
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Sequence
+from typing import Optional, Sequence
 
 import numpy as np
 import yaml
@@ -63,9 +63,9 @@ def build_workflow_paths(
     speaker_split: str,
     target_split: str,
     generated_dir: Path,
-    feature_root: Path | None,
-    merged_output_dir: Path | None,
-    face_work_dir: Path | None,
+    feature_root: Optional[Path],
+    merged_output_dir: Optional[Path],
+    face_work_dir: Optional[Path],
 ) -> WorkflowPaths:
     speaker_split_dir = dataset_root / speaker_split
     target_split_dir = dataset_root / target_split

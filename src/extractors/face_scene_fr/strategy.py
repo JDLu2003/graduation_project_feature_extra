@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 import clip
 import numpy as np
@@ -171,7 +171,7 @@ class FaceSceneFRStrategy(FeatureExtractor):
         agg = F.normalize(agg, p=2, dim=-1)
         return agg.cpu().detach().to(torch.float64)
 
-    def _extract_person_features(self, frames: List, target_people: set[str] | None = None) -> Dict[str, torch.Tensor]:
+    def _extract_person_features(self, frames: List, target_people: Optional[Set[str]] = None) -> Dict[str, torch.Tensor]:
         if not frames:
             return {}
 

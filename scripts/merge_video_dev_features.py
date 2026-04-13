@@ -14,7 +14,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -31,7 +31,7 @@ def _utt_key(dialogue_id: int, utterance_idx: int) -> str:
     return f"C_{dialogue_id}_U_{utterance_idx}"
 
 
-def _expected_output_dim_from_config(app_config: AppConfig) -> int | None:
+def _expected_output_dim_from_config(app_config: AppConfig) -> Optional[int]:
     if app_config.extractor.active_type == "visual_clip":
         cfg = app_config.extractor.visual_clip_config
         return None if cfg is None else int(cfg.target_dim)
@@ -50,9 +50,9 @@ def validate_and_collect(
     rows: List[np.ndarray] = []
     mapping: Dict[str, List[int]] = {}
     running_idx = 1
-    feature_dim: int | None = None
+    feature_dim: Optional[int] = None
     total_utterances = 0
-    source_dtype: np.dtype | None = None
+    source_dtype: Optional[np.dtype] = None
 
     for dialogue in dialogues:
         for utt in dialogue.utterances:

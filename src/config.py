@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 
 import yaml
 
@@ -53,8 +53,8 @@ class FaceSceneFRConfig:
 @dataclass(frozen=True)
 class ExtractorConfig:
     active_type: Literal["visual_clip", "face_scene_fr"]
-    visual_clip_config: VisualClipConfig | None = None # Make it optional and correctly typed
-    face_scene_fr_config: FaceSceneFRConfig | None = None
+    visual_clip_config: Optional[VisualClipConfig] = None
+    face_scene_fr_config: Optional[FaceSceneFRConfig] = None
 
 @dataclass(frozen=True)
 class NonSpeakerConfig:
@@ -99,8 +99,8 @@ class AppConfig:
         # Parse extractor config based on active_type
         active_extractor_type = config_data["extractor"]["active_type"]
 
-        visual_clip_config_instance: VisualClipConfig | None = None
-        face_scene_fr_config_instance: FaceSceneFRConfig | None = None
+        visual_clip_config_instance: Optional[VisualClipConfig] = None
+        face_scene_fr_config_instance: Optional[FaceSceneFRConfig] = None
         if active_extractor_type == "visual_clip":
             visual_clip_data = config_data.get("visual_clip_config", {})
             frame_sampling_config = FrameSamplingConfig(**visual_clip_data["frame_sampling"])
