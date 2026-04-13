@@ -88,6 +88,14 @@ class ReferenceIdentityEmbedding:
     prototype: np.ndarray
 
 
+@dataclass(frozen=True)
+class MergedIdentity:
+    name: str
+    cluster_ids: list[int]
+    face_count: int
+    utterance_count: int
+
+
 def normalize_name(name: str) -> str:
     return name.strip()
 
@@ -354,6 +362,10 @@ def participant_names(utt: UtteranceRecord) -> list[str]:
     return [normalize_name(utt.speaker.name)] + [normalize_name(x.name) for x in utt.listeners]
 
 
+def infer_split_name(txt_path: Path) -> str:
+    return txt_path.stem
+
+
 def evaluate_predictions(
     utterances: list[UtteranceRecord],
     face_records: list[FaceRecord],
@@ -404,14 +416,27 @@ def evaluate_predictions(
 
     utterance_rows: list[dict[str, object]] = []
     matched_roles: set[str] = set()
+    matched_speaker_roles: set[str] = set()
+    matched_listener_roles: set[str] = set()
     total_listener_slots = 0
     matched_listener_slots = 0
     with_face_count = 0
     with_known_match_count = 0
     speaker_match_count = 0
     participant_match_count = 0
+    exact_participant_match_count = 0
+    utterances_with_listener = 0
+    listener_recall_sum_all = 0.0
+    listener_recall_sum_non_empty = 0.0
 
     role_counter = Counter(role_names)
+    speaker_role_set = {normalize_name(utt.speaker.name) for utt in utterances if normalize_name(utt.speaker.name)}
+    listener_role_set = {
+        normalize_name(listener.name)
+        for utt in utterances
+        for listener in utt.listeners
+        if normalize_name(listener.name)
+    }
 
     for utt in utterances:
         key = (utt.dialogue_id, utt.utterance_idx)
@@ -430,12 +455,22 @@ def evaluate_predictions(
         speaker_hit = speaker_name in predicted_set
         listener_hits = sorted(set(predicted_set.intersection(listeners)))
         participant_hit = bool(predicted_set.intersection(participant_set))
+        exact_participant_hit = participant_set.issubset(predicted_set) if participant_set else False
+        listener_recall = (len(listener_hits) / len(listeners)) if listeners else 0.0
         if speaker_hit:
             speaker_match_count += 1
             matched_roles.add(speaker_name)
+            matched_speaker_roles.add(speaker_name)
         if participant_hit:
             participant_match_count += 1
             matched_roles.update(predicted_set.intersection(participant_set))
+        if exact_participant_hit:
+            exact_participant_match_count += 1
+        if listeners:
+            utterances_with_listener += 1
+            listener_recall_sum_non_empty += listener_recall
+        listener_recall_sum_all += listener_recall
+        matched_listener_roles.update(set(listener_hits))
         matched_listener_slots += len(listener_hits)
         utterance_rows.append(
             {
@@ -447,7 +482,10 @@ def evaluate_predictions(
                 "num_detected_faces": face_count,
                 "speaker_hit": speaker_hit,
                 "listener_hit_count": len(listener_hits),
+                "listener_total_count": len(listeners),
+                "listener_recall": listener_recall,
                 "participant_hit": participant_hit,
+                "all_participants_hit": exact_participant_hit,
             }
         )
 
@@ -461,18 +499,30 @@ def evaluate_predictions(
         "speaker_hit_ratio": speaker_match_count / len(utterances) if utterances else 0.0,
         "participant_hit_utterances": participant_match_count,
         "participant_hit_ratio": participant_match_count / len(utterances) if utterances else 0.0,
+        "all_participants_hit_utterances": exact_participant_match_count,
+        "all_participants_hit_ratio": exact_participant_match_count / len(utterances) if utterances else 0.0,
         "matched_listener_slots": matched_listener_slots,
         "total_listener_slots": total_listener_slots,
         "listener_slot_hit_ratio": matched_listener_slots / total_listener_slots if total_listener_slots else 0.0,
+        "avg_listener_recall_per_utterance_all": listener_recall_sum_all / len(utterances) if utterances else 0.0,
+        "avg_listener_recall_per_utterance_non_empty": listener_recall_sum_non_empty / utterances_with_listener if utterances_with_listener else 0.0,
         "matched_roles": len(matched_roles),
         "total_roles": len(set(role_names)),
         "matched_role_ratio": len(matched_roles) / len(set(role_names)) if role_names else 0.0,
+        "matched_speaker_roles": len(matched_speaker_roles),
+        "total_speaker_roles": len(speaker_role_set),
+        "matched_speaker_role_ratio": len(matched_speaker_roles) / len(speaker_role_set) if speaker_role_set else 0.0,
+        "matched_listener_roles": len(matched_listener_roles),
+        "total_listener_roles": len(listener_role_set),
+        "matched_listener_role_ratio": len(matched_listener_roles) / len(listener_role_set) if listener_role_set else 0.0,
         "role_counter_top20": role_counter.most_common(20),
         "cluster_count": len(cluster_matches),
         "known_cluster_count": sum(1 for row in cluster_matches if row.is_known),
+        "unique_named_identity_count": 0,
         "artifacts": {
             "extracted_faces_dir": "extracted_faces",
             "cluster_gallery_dir": "cluster_gallery",
+            "merged_identity_gallery_dir": "merged_identity_gallery",
             "utterance_predictions_csv": "utterance_predictions.csv",
             "cluster_matches_csv": "cluster_matches.csv",
         },
@@ -485,6 +535,7 @@ def write_markdown_report(
     args: argparse.Namespace,
     pipeline_summary: dict[str, object],
     reference_bank: list[ReferenceIdentityEmbedding],
+    merged_identities: list[MergedIdentity],
 ) -> None:
     ensure_dir(path.parent)
     lines = [
@@ -517,9 +568,14 @@ def write_markdown_report(
         f"- utterance 有已知角色匹配率：`{pipeline_summary['utterances_with_known_match_ratio']:.2%}`",
         f"- speaker 命中率：`{pipeline_summary['speaker_hit_ratio']:.2%}`",
         f"- participant 命中率：`{pipeline_summary['participant_hit_ratio']:.2%}`",
+        f"- 句子内所有人物全部命中率：`{pipeline_summary['all_participants_hit_ratio']:.2%}`",
         f"- listener 槽位命中率：`{pipeline_summary['listener_slot_hit_ratio']:.2%}`",
+        f"- 平均每句非说话人识别率（只统计有 listener 的句子）：`{pipeline_summary['avg_listener_recall_per_utterance_non_empty']:.2%}`",
         f"- 角色命中覆盖率：`{pipeline_summary['matched_role_ratio']:.2%}`",
+        f"- 说话人角色覆盖率：`{pipeline_summary['matched_speaker_role_ratio']:.2%}`",
+        f"- 非说话人角色覆盖率：`{pipeline_summary['matched_listener_role_ratio']:.2%}`",
         f"- cluster 总数：`{pipeline_summary['cluster_count']}`，其中已知 cluster：`{pipeline_summary['known_cluster_count']}`",
+        f"- 合并后的已命名 identity 数：`{len(merged_identities)}`",
         f"- reference 身份数：`{len(reference_bank)}`",
         "",
         "## 建议调参方向",
@@ -602,6 +658,96 @@ def write_cluster_gallery(
         (cluster_dir / "说明.txt").write_text("\n".join(explanation_lines), encoding="utf-8")
 
 
+def merge_known_clusters(
+    face_records: list[FaceRecord],
+    assignments: np.ndarray,
+    cluster_rows: list[dict[str, object]],
+) -> list[MergedIdentity]:
+    row_by_cluster = {int(row["cluster_id"]): row for row in cluster_rows}
+    face_indices_by_cluster: dict[int, list[int]] = defaultdict(list)
+    for idx, cluster_id in enumerate(assignments.tolist()):
+        face_indices_by_cluster[int(cluster_id)].append(idx)
+
+    clusters_by_name: dict[str, list[int]] = defaultdict(list)
+    utterance_keys_by_name: dict[str, set[tuple[int, int]]] = defaultdict(set)
+    face_count_by_name: Counter[str] = Counter()
+
+    for cluster_id, row in row_by_cluster.items():
+        assigned_name = str(row.get("assigned_name", "unknown"))
+        if assigned_name == "unknown":
+            continue
+        clusters_by_name[assigned_name].append(cluster_id)
+        for face_idx in face_indices_by_cluster.get(cluster_id, []):
+            face = face_records[face_idx]
+            utterance_keys_by_name[assigned_name].add((face.dialogue_id, face.utterance_idx))
+            face_count_by_name[assigned_name] += 1
+
+    merged: list[MergedIdentity] = []
+    for name, cluster_ids in sorted(clusters_by_name.items()):
+        merged.append(
+            MergedIdentity(
+                name=name,
+                cluster_ids=sorted(cluster_ids),
+                face_count=face_count_by_name[name],
+                utterance_count=len(utterance_keys_by_name[name]),
+            )
+        )
+    return merged
+
+
+def write_merged_identity_gallery(
+    output_dir: Path,
+    face_records: list[FaceRecord],
+    assignments: np.ndarray,
+    cluster_rows: list[dict[str, object]],
+    merged_identities: list[MergedIdentity],
+    args: argparse.Namespace,
+) -> None:
+    gallery_root = output_dir / "merged_identity_gallery"
+    ensure_dir(gallery_root)
+    row_by_cluster = {int(row["cluster_id"]): row for row in cluster_rows}
+    faces_by_identity: dict[str, list[tuple[int, FaceRecord]]] = defaultdict(list)
+    for face, cluster_id in zip(face_records, assignments.tolist()):
+        assigned_name = str(row_by_cluster.get(int(cluster_id), {}).get("assigned_name", "unknown"))
+        if assigned_name == "unknown":
+            continue
+        faces_by_identity[assigned_name].append((int(cluster_id), face))
+
+    for identity in tqdm(merged_identities, desc="[pipeline] write merged identity gallery"):
+        identity_dir = gallery_root / safe_fs_name(identity.name)
+        images_dir = identity_dir / "images"
+        ensure_dir(images_dir)
+        members = faces_by_identity.get(identity.name, [])
+        for index, (cluster_id, face) in enumerate(members, start=1):
+            src = Path(face.crop_path)
+            dst = images_dir / f"{index:05d}_c{cluster_id:05d}_{src.name}"
+            if not dst.exists():
+                shutil.copy2(src, dst)
+
+        lines = [
+            f"identity_name: {identity.name}",
+            f"merged_cluster_count: {len(identity.cluster_ids)}",
+            f"merged_cluster_ids: {','.join(str(x) for x in identity.cluster_ids)}",
+            f"merged_face_count: {identity.face_count}",
+            f"merged_utterance_count: {identity.utterance_count}",
+            "",
+            "关键超参数：",
+            f"- cluster_threshold: {args.cluster_threshold}",
+            f"- reference_match_threshold: {args.reference_match_threshold}",
+            f"- reference_match_margin: {args.reference_match_margin}",
+            f"- face_verify_threshold: {args.face_verify_threshold}",
+            "",
+            "来源 cluster：",
+        ]
+        for cluster_id in identity.cluster_ids:
+            row = row_by_cluster.get(cluster_id, {})
+            lines.append(
+                f"- cluster_id={cluster_id}, size={row.get('size', 0)}, best_score={float(row.get('best_score', 0.0)):.4f}, "
+                f"margin={float(row.get('score_margin', 0.0)):.4f}, top_candidates={row.get('top_candidates', '')}"
+            )
+        (identity_dir / "说明.txt").write_text("\n".join(lines), encoding="utf-8")
+
+
 def save_embeddings(path: Path, embeddings: np.ndarray) -> None:
     ensure_dir(path.parent)
     np.save(path, embeddings)
@@ -665,6 +811,7 @@ def main() -> None:
         )
 
     txt_path = args.txt_path.resolve()
+    split_name = infer_split_name(txt_path)
     video_dir = infer_video_dir(txt_path, args.video_dir)
     reference_root = args.reference_root.resolve()
     output_dir = (args.output_root / args.run_name).resolve()
@@ -804,9 +951,34 @@ def main() -> None:
         ref_count_by_name=ref_count_by_name,
         face_verify_threshold=args.face_verify_threshold,
     )
+    merged_identities = merge_known_clusters(
+        face_records=face_records,
+        assignments=cluster_assignments,
+        cluster_rows=cluster_rows,
+    )
+    summary["unique_named_identity_count"] = len(merged_identities)
+    summary["split_name"] = split_name
+    summary["covered_reference_identity_count"] = len({row.name for row in merged_identities})
+    summary["covered_reference_identity_ratio"] = (
+        len({row.name for row in merged_identities}) / len(reference_bank)
+        if reference_bank else 0.0
+    )
     write_json(output_dir / "pipeline_summary.json", summary)
     write_csv(output_dir / "cluster_matches.csv", cluster_rows)
     write_csv(output_dir / "utterance_predictions.csv", utterance_rows)
+    write_csv(
+        output_dir / "merged_identities.csv",
+        [
+            {
+                "name": row.name,
+                "merged_cluster_count": len(row.cluster_ids),
+                "merged_cluster_ids": "|".join(str(x) for x in row.cluster_ids),
+                "face_count": row.face_count,
+                "utterance_count": row.utterance_count,
+            }
+            for row in merged_identities
+        ],
+    )
     write_cluster_gallery(
         output_dir=output_dir,
         face_records=face_records,
@@ -814,7 +986,21 @@ def main() -> None:
         cluster_rows=cluster_rows,
         args=args,
     )
-    write_markdown_report(output_dir / "pipeline_report.md", args=args, pipeline_summary=summary, reference_bank=reference_bank)
+    write_merged_identity_gallery(
+        output_dir=output_dir,
+        face_records=face_records,
+        assignments=cluster_assignments,
+        cluster_rows=cluster_rows,
+        merged_identities=merged_identities,
+        args=args,
+    )
+    write_markdown_report(
+        output_dir / "pipeline_report.md",
+        args=args,
+        pipeline_summary=summary,
+        reference_bank=reference_bank,
+        merged_identities=merged_identities,
+    )
     write_json(
         output_dir / "run_config.json",
         {
@@ -830,10 +1016,16 @@ def main() -> None:
     )
 
     print(f"[facenet_cluster_pipeline] output_dir={output_dir}")
+    print(f"[facenet_cluster_pipeline] split_name={split_name}")
     print(f"[facenet_cluster_pipeline] total_faces={len(face_records)} total_clusters={len(cluster_matches)}")
     print(f"[facenet_cluster_pipeline] utterances_with_face_ratio={summary['utterances_with_face_ratio']:.2%}")
+    print(f"[facenet_cluster_pipeline] utterance_all_participants_hit_ratio={summary['all_participants_hit_ratio']:.2%}")
     print(f"[facenet_cluster_pipeline] speaker_hit_ratio={summary['speaker_hit_ratio']:.2%}")
     print(f"[facenet_cluster_pipeline] participant_hit_ratio={summary['participant_hit_ratio']:.2%}")
+    print(f"[facenet_cluster_pipeline] matched_speaker_role_ratio={summary['matched_speaker_role_ratio']:.2%}")
+    print(f"[facenet_cluster_pipeline] matched_listener_role_ratio={summary['matched_listener_role_ratio']:.2%}")
+    print(f"[facenet_cluster_pipeline] avg_listener_recall_per_utterance_non_empty={summary['avg_listener_recall_per_utterance_non_empty']:.2%}")
+    print(f"[facenet_cluster_pipeline] covered_reference_identity_ratio={summary['covered_reference_identity_ratio']:.2%}")
     print(f"[facenet_cluster_pipeline] matched_role_ratio={summary['matched_role_ratio']:.2%}")
 
 

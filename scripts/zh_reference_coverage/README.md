@@ -98,6 +98,7 @@
    - 与 reference 的匹配分数
    - cluster 内部一致性统计
    - 判定时使用的关键超参数
+4. `merged_identity_gallery/` 会把同名 cluster 进一步合并，按最终人物名聚合，便于看“同一个 reference 人物是否被拆成多个 cluster”。
 
 ## 使用方式
 
@@ -123,6 +124,12 @@ make pipeline
 
 ```bash
 make pipeline-smoke
+```
+
+如果要一次跑完 `train/dev/test` 三个 split：
+
+```bash
+make pipeline-all-splits
 ```
 
 ## A6000 10G 推荐起始参数
@@ -174,6 +181,31 @@ REFERENCE_MATCH_THRESHOLD=0.80
 REFERENCE_MATCH_MARGIN=0.03
 FACE_VERIFY_THRESHOLD=0.75
 ```
+
+## 当前更推荐关注的指标
+
+如果你的目标是“每一句里的人物能不能被识别出来”，建议优先看这些字段：
+
+1. `covered_reference_identity_ratio`
+   reference 库里的人物最终覆盖了多少。
+
+2. `matched_speaker_role_ratio`
+   说话人角色覆盖率。
+
+3. `matched_listener_role_ratio`
+   非说话人角色覆盖率。
+
+4. `participant_hit_ratio`
+   每句里至少识别出一个真实人物的比例。
+
+5. `speaker_hit_ratio`
+   每句的说话人是否被命中的比例。
+
+6. `avg_listener_recall_per_utterance_non_empty`
+   平均每句非说话人的识别率。
+
+7. `all_participants_hit_ratio`
+   一句中所有真实人物都被识别出来的比例。
 
 ## 结果解读建议
 

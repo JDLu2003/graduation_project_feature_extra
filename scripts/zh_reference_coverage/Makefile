@@ -7,8 +7,10 @@ RUN := conda run --no-capture-output -n $(CONDA_ENV) $(PYTHON) -u
 
 SCRIPT := $(ROOT)/scripts/zh_reference_coverage/run_reference_coverage_eval.py
 PIPELINE_SCRIPT := $(ROOT)/scripts/zh_reference_coverage/run_facenet_cluster_pipeline.py
+ALL_SPLITS_SCRIPT := $(ROOT)/scripts/zh_reference_coverage/run_facenet_cluster_all_splits.py
 TXT_PATH ?= /data16T_1/sunshengzhe/lujiading/data_zh/dev/dev.txt
 VIDEO_DIR ?= /data16T_1/sunshengzhe/lujiading/data_zh/dev/Video_dev
+DATASET_ROOT ?= /data16T_1/sunshengzhe/lujiading/data_zh
 REFERENCE_ROOT ?= /data16T_2/sunshengzhe/reference_face_zh
 OUTPUT_ROOT ?= $(ROOT)/scripts/zh_reference_coverage/artifacts
 RUN_NAME ?= latest
@@ -27,13 +29,14 @@ MAX_FACES_PER_FRAME ?= 8
 USE_FP16 ?= 1
 SMOKE_MAX_DIALOGUES ?= 8
 
-.PHONY: help run pipeline pipeline-smoke clean
+.PHONY: help run pipeline pipeline-smoke pipeline-all-splits clean
 
 help:
 	@echo "zh_reference_coverage targets:"
 	@echo "  make run                          # 静态 reference 覆盖率评估"
 	@echo "  make pipeline                     # MTCNN + FaceNet + 聚类 + reference 检索评估"
 	@echo "  make pipeline-smoke               # 只跑少量 dialogue 的冒烟评估"
+	@echo "  make pipeline-all-splits          # train/dev/test 三个 split 一键评估"
 	@echo "  make clean                        # 删除 latest 输出"
 	@echo ""
 	@echo "Override examples:"
@@ -97,5 +100,24 @@ pipeline-smoke:
 		$(if $(filter 1,$(USE_FP16)),--use-fp16,) \
 		--overwrite
 
+pipeline-all-splits:
+	$(RUN) $(ALL_SPLITS_SCRIPT) \
+		--dataset-root $(DATASET_ROOT) \
+		--reference-root $(REFERENCE_ROOT) \
+		--output-root $(OUTPUT_ROOT) \
+		--run-prefix $(PIPELINE_RUN_NAME) \
+		--device $(DEVICE) \
+		--num-frames $(NUM_FRAMES) \
+		--detect-batch-size $(DETECT_BATCH_SIZE) \
+		--embed-batch-size $(EMBED_BATCH_SIZE) \
+		--reference-embed-batch-size $(REFERENCE_EMBED_BATCH_SIZE) \
+		--cluster-threshold $(CLUSTER_THRESHOLD) \
+		--reference-match-threshold $(REFERENCE_MATCH_THRESHOLD) \
+		--reference-match-margin $(REFERENCE_MATCH_MARGIN) \
+		--face-verify-threshold $(FACE_VERIFY_THRESHOLD) \
+		--max-faces-per-frame $(MAX_FACES_PER_FRAME) \
+		$(if $(filter 1,$(USE_FP16)),--use-fp16,) \
+		--overwrite
+
 clean:
-	rm -rf $(OUTPUT_ROOT)/latest $(OUTPUT_ROOT)/pipeline_latest $(OUTPUT_ROOT)/pipeline_latest_smoke
+	rm -rf $(OUTPUT_ROOT)/latest $(OUTPUT_ROOT)/pipeline_latest $(OUTPUT_ROOT)/pipeline_latest_smoke $(OUTPUT_ROOT)/pipeline_latest_summary.json
