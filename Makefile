@@ -13,6 +13,7 @@ ROLE_SCRIPT := $(ROOT)/scripts/stat_role_frequencies.py
 FACE_BOX_SCRIPT := $(ROOT)/scripts/extract_faces_with_ffmpeg_mtcnn.py
 TRAIN_FACE_SCRIPT := $(ROOT)/face_name_id/scripts/train_facenet_fr.py
 MAIN_SCRIPT := $(ROOT)/main.py
+ZH_REF_COVERAGE_SCRIPT := $(ROOT)/scripts/zh_reference_coverage/run_reference_coverage_eval.py
 
 ROLE_SORT ?= utterances
 ROLE_OUT_CSV ?= $(ROOT)/logs/role_frequencies.csv
@@ -21,8 +22,14 @@ VIDEO ?=
 FPS ?= 25
 DEVICE ?= auto
 MIN_CONF ?= 0.95
+ZH_TXT_PATH ?= /data16T_1/sunshengzhe/lujiading/data_zh/dev/dev.txt
+ZH_REFERENCE_ROOT ?= /data16T_2/sunshengzhe/reference_face_zh
+ZH_REF_OUTPUT_ROOT ?= $(ROOT)/scripts/zh_reference_coverage/artifacts
+ZH_REF_RUN_NAME ?= latest
+ZH_REF_THRESHOLDS ?= 1 3 5 10 15 20
+ZH_REF_CONDA_ENV ?= EL_LJD
 
-.PHONY: help config-help train-face-model train-face-model-skip-split role-stats role-stats-export face-box-video smoke full verify-and-full one-click
+.PHONY: help config-help train-face-model train-face-model-skip-split role-stats role-stats-export face-box-video smoke full verify-and-full one-click zh-ref-coverage
 
 help:
 	@echo "Project quickstart:"
@@ -40,6 +47,7 @@ help:
 	@echo "  make smoke                       # face_scene_fr 冒烟，默认前 $(MAX_DIALOGUES) 个 dialogue"
 	@echo "  make full                        # face_scene_fr 全量提取"
 	@echo "  make role-stats                  # 统计角色频次"
+	@echo "  make zh-ref-coverage             # 评估中文 reference 脸库覆盖面"
 	@echo "  make face-box-video VIDEO=/abs.mp4"
 	@echo ""
 	@echo "Override examples:"
@@ -91,6 +99,15 @@ smoke:
 full:
 	@echo "[full] face_scene_fr full run with CONFIG=$(CONFIG)"
 	$(RUN) $(MAIN_SCRIPT) --config $(CONFIG)
+
+zh-ref-coverage:
+	conda run --no-capture-output -n $(ZH_REF_CONDA_ENV) $(PYTHON) -u $(ZH_REF_COVERAGE_SCRIPT) \
+		--txt-path $(ZH_TXT_PATH) \
+		--reference-root $(ZH_REFERENCE_ROOT) \
+		--output-root $(ZH_REF_OUTPUT_ROOT) \
+		--run-name $(ZH_REF_RUN_NAME) \
+		$(foreach thr,$(ZH_REF_THRESHOLDS),--threshold $(thr)) \
+		--overwrite
 
 verify-and-full: smoke full
 
