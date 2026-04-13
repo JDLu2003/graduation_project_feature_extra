@@ -59,7 +59,7 @@ if __name__ == "__main__":
         feat_out_dir = app_config.paths.feat_out
 
         dummy_features = torch.randn(3, 1024) # Example features for 3 persons
-        dummy_output_path = feat_out_dir / "Video_en_dev" / "C_999" / "C_999_U_0.pt"
+        dummy_output_path = feat_out_dir / "C_999" / "C_999_U_0.pt"
 
         print(f"Attempting to save dummy features to: {dummy_output_path}")
         success = save_features(dummy_features, dummy_output_path, skip_existing=False)

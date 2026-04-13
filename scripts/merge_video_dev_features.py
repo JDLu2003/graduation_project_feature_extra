@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Merge per-utterance visual feature tensors into dev-level numpy files.
+"""Merge per-utterance visual feature tensors into split-level numpy files.
 
 Steps:
 1. Parse dev annotations with src.parser.parse_dev_txt.
 2. Validate every utterance tensor (.pt): existence, 2D shape, and row count.
 3. Merge rows in dev order.
 4. Add a zero padding row at index 0 for direct 1-based indexing.
-5. Save to feat_out/merge by default.
+5. Save to split-specific numpy files by default.
 """
 
 from __future__ import annotations
@@ -118,11 +118,11 @@ def validate_and_collect(
     return rows, mapping, feature_dim
 
 
-def save_outputs(rows: List[np.ndarray], mapping: Dict[str, List[int]], output_dir: Path) -> None:
+def save_outputs(rows: List[np.ndarray], mapping: Dict[str, List[int]], output_dir: Path, split_name: str) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    emb_path = output_dir / "video_embedding_dev.npy"
-    map_path = output_dir / "video_id_mapping_dev.npy"
+    emb_path = output_dir / f"video_embedding_{split_name}.npy"
+    map_path = output_dir / f"video_id_mapping_{split_name}.npy"
 
     merged = np.concatenate(rows, axis=0).astype(np.float64, copy=False)
     zero_row = np.zeros((1, merged.shape[1]), dtype=np.float64)
@@ -139,27 +139,35 @@ def save_outputs(rows: List[np.ndarray], mapping: Dict[str, List[int]], output_d
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Merge dev visual features to npy")
+    parser = argparse.ArgumentParser(description="Merge split visual features to npy")
     parser.add_argument("--config", type=Path, default=PROJECT_ROOT / "config.yaml")
     parser.add_argument("--feat-root", type=Path, default=None)
+    parser.add_argument(
+        "--split-name",
+        type=str,
+        default=None,
+        help="Override output split name. Default: use paths.split_name from config.",
+    )
     parser.add_argument(
         "--output-dir",
         type=Path,
         default=None,
-        help="Default: feat_out/merge",
+        help="Default: feat_out parent directory",
     )
     args = parser.parse_args()
 
     app_config = AppConfig.from_yaml(args.config)
     feat_root = args.feat_root.resolve() if args.feat_root else app_config.paths.feat_out
-    output_dir = args.output_dir.resolve() if args.output_dir else (feat_root.parent / "merge")
+    split_name = (args.split_name or app_config.paths.split_name).strip()
+    output_dir = args.output_dir.resolve() if args.output_dir else feat_root.parent
 
+    print(f"[merge] split_name: {split_name}")
     print(f"[merge] dev_txt   : {app_config.paths.dev_txt}")
     print(f"[merge] feat_root : {feat_root}")
     print(f"[merge] output_dir: {output_dir}")
 
     rows, mapping, _ = validate_and_collect(app_config, feat_root)
-    save_outputs(rows, mapping, output_dir)
+    save_outputs(rows, mapping, output_dir, split_name=split_name)
 
 
 if __name__ == "__main__":

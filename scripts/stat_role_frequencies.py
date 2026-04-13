@@ -31,7 +31,11 @@ class RoleFrequency:
         return self.speaker_count + self.listener_count
 
 
-def load_dialogues(config_path: Path) -> list[DialogueRecord]:
+def load_dialogues(config_path: Path | None = None, txt_path: Path | None = None) -> list[DialogueRecord]:
+    if txt_path is not None:
+        return parse_dev_txt(txt_path)
+    if config_path is None:
+        raise ValueError("Either config_path or txt_path must be provided.")
     app_config = AppConfig.from_yaml(config_path)
     return parse_dev_txt(app_config.paths.dev_txt)
 
@@ -173,8 +177,14 @@ def main() -> None:
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("config.yaml"),
-        help="YAML 配置文件路径，默认读取当前目录下的 config.yaml。",
+        default=None,
+        help="YAML 配置文件路径。",
+    )
+    parser.add_argument(
+        "--txt-path",
+        type=Path,
+        default=None,
+        help="可选：直接指定 train/dev/test.txt 路径，跳过配置文件加载。",
     )
     parser.add_argument(
         "--sort",
@@ -196,9 +206,11 @@ def main() -> None:
         help="可选：将统计结果写入 JSON 文件。",
     )
     args = parser.parse_args()
+    if args.config is None and args.txt_path is None:
+        args.config = Path("config.yaml")
 
     try:
-        dialogues = load_dialogues(args.config)
+        dialogues = load_dialogues(args.config, args.txt_path)
     except (FileNotFoundError, ValueError) as exc:
         print(f"[stat_role_frequencies] 配置或解析失败: {exc}")
         sys.exit(1)

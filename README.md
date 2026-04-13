@@ -92,7 +92,42 @@ make role-stats
 make smoke
 ```
 
-## 5. 子模块说明
+## 5. 中文数据集工作流
+
+如果你要把同样的流程迁移到中文数据集，推荐直接使用仓库内的新脚本生成配置并串起检查步骤：
+
+```bash
+python scripts/run_zh_feature_workflow.py \
+  --dataset-root /data16T_1/sunshengzhe/lujiading/data_zh \
+  --speaker-split train \
+  --target-split dev
+```
+
+这一步会先做路径检查，并生成 3 份配置：
+
+1. `generated_configs/zh_workflow/dataset_build_train_zh.yaml`
+2. `generated_configs/zh_workflow/facenet_fr_train_zh.yaml`
+3. `generated_configs/zh_workflow/main_dev_zh.yaml`
+
+如果希望脚本直接执行各阶段，并在每一步完成后检查结果，可以这样跑：
+
+```bash
+python scripts/run_zh_feature_workflow.py \
+  --dataset-root /data16T_1/sunshengzhe/lujiading/data_zh \
+  --speaker-split train \
+  --target-split dev \
+  --use-conda-run \
+  --conda-env security \
+  --run role-stats build-face-dataset train-face-model extract-smoke extract-full merge verify
+```
+
+说明：
+
+1. `speaker-split` 用来训练中文人脸识别模型，通常建议用 `train`
+2. `target-split` 是要导出 `video_embedding_*.npy` 和 `video_id_mapping_*.npy` 的划分，例如 `dev`
+3. merge 阶段现在会按 `split_name` 自动输出，例如 `video_embedding_dev.npy`
+
+## 6. 子模块说明
 
 本仓库依赖以下子模块：
 
@@ -106,7 +141,7 @@ make smoke
 git submodule update --init --recursive
 ```
 
-## 6. 常见问题
+## 7. 常见问题
 
 1. 子模块为空目录  
 执行：`git submodule update --init --recursive`

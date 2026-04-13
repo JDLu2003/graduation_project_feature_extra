@@ -1,7 +1,9 @@
 # 配置参数：多模态对话特征提取
 
 paths:
-  # dev_txt: 包含对话结构与情绪标记的文本文件路径
+  # split_name: 当前处理的数据划分名称，用于 merge 阶段输出命名
+  split_name: "dev"
+  # dev_txt: 当前划分的文本标注文件路径；字段名沿用历史命名，但可指向 train/dev/test 任一 split
   dev_txt:   "../data_set/Viedeo_en_dev/dev.txt"
   # video_dir: 视频文件根目录，程序将在此目录下查找具体对话的视频文件夹
   video_dir: "../data_set/Viedeo_en_dev/Video_en_dev"

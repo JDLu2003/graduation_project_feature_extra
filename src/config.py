@@ -8,6 +8,7 @@ from src.device import DeviceName
 
 @dataclass(frozen=True)
 class PathsConfig:
+    split_name: str
     dev_txt: Path
     video_dir: Path
     feat_out: Path
@@ -79,10 +80,15 @@ class AppConfig:
         base_dir = yaml_path.resolve().parent
 
         # Validate paths exist
+        raw_paths = config_data["paths"]
+        split_name = str(raw_paths.get("split_name") or Path(raw_paths["dev_txt"]).stem).strip()
+        if not split_name:
+            raise ValueError("paths.split_name must not be empty")
         paths_config = PathsConfig(
-            dev_txt=(base_dir / config_data["paths"]["dev_txt"]).resolve(),
-            video_dir=(base_dir / config_data["paths"]["video_dir"]).resolve(),
-            feat_out=(base_dir / config_data["paths"]["feat_out"]).resolve(),
+            split_name=split_name,
+            dev_txt=(base_dir / raw_paths["dev_txt"]).resolve(),
+            video_dir=(base_dir / raw_paths["video_dir"]).resolve(),
+            feat_out=(base_dir / raw_paths["feat_out"]).resolve(),
         )
         if not paths_config.dev_txt.exists():
             raise FileNotFoundError(f"dev_txt path does not exist: {paths_config.dev_txt}")
